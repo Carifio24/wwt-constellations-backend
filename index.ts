@@ -1,11 +1,11 @@
 import express, { Express, Request, Response } from 'express';
-import bodyParser from 'body-parser';
+import bodyParser, { json } from 'body-parser';
 import dotenv from 'dotenv';
 import cors from "cors";
 import { parseXmlFromUrl } from "./util";
 import { JSDOM } from 'jsdom';
 import { Scene, isScene, isSceneSettings } from './types';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 
 dotenv.config();
 
@@ -125,42 +125,22 @@ app.post('/scenes/:id::action', async (req: Request, res: Response) => {
     return;
   }
 
-  const scene = await collection.findOne({id: id});
-  if (scene === null) {
-    res.statusCode = 404;
+  collection.findOneAndUpdate(
+    { "_id": new ObjectId(id) },
+    { $set: settings },
+    { returnDocument: "after" } // Return the modified document
+  ).then((result) => {
+    const updated = (result.lastErrorObject) ? result.lastErrorObject['updatedExisting'] : false;
     res.json({
-      updated: false,
-      message: "No document was found with the specified ID"
+      updated,
+      scene: result.value
     });
-  }
-
-  collection.updateOne(
-    { id },
-    { $set: settings }
-  );
-
+  });
 });
 
-app.get('/scenes/:sceneID', (req: Request, res: Response) => {
+app.get('/scenes/:sceneID', async (req: Request, res: Response) => {
 
-  // Check if the scene exists
-  // if not, return null
-
-  const dummyScene: Scene = {
-    name: "My Scene",
-    imageURLs: [],
-    user: "testuser",
-    place: {
-      raRad: 0,
-      decRad: 0,
-      zoomDeg: 25,
-      rollRad: 15
-    }
-  };
-
-  res.json({
-    scene: dummyScene,
-    found: true
-  });
+  const result = await collection.findOne({ "_id": new ObjectId(req.params.sceneID) });
+  res.json(result);
 
 });
