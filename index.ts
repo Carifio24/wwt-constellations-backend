@@ -1,11 +1,12 @@
 import express, { Express, Request, Response } from 'express';
-import bodyParser, { json } from 'body-parser';
+import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import cors from "cors";
 import { parseXmlFromUrl } from "./util";
 import { JSDOM } from 'jsdom';
-import { Scene, isScene, isSceneSettings } from './types';
-import { MongoClient, ObjectId } from 'mongodb';
+import { isScene, isSceneSettings } from './types';
+import { MongoClient, ObjectId, WithId, Document } from 'mongodb';
+import { create } from "xmlbuilder2";
 
 dotenv.config();
 
@@ -23,9 +24,10 @@ const cosmos = new MongoClient(process.env.MONGO_CONNECTION_STRING ?? "");
   console.log("Connected!");
 })();
 
-const database = cosmos.db("constellations-scenes-db");
+const database = cosmos.db("constellations-db");
 console.log(database);
-const collection = database.collection("scenes");
+const sceneCollection = database.collection("scenes");
+const imageCollection = database.collection("images");
 
 
 let data: Document = new JSDOM().window.document;
@@ -42,6 +44,29 @@ function checkAuthToken(_token: string) {
 
 app.get('/', (_req: Request, res: Response) => {
   res.send('Express + TypeScript Server');
+});
+
+app.get('/images', async (_req: Request, res: Response) => {
+  const images: WithId<Document>[] = await imageCollection.find({}).toArray();
+
+  const root = create().ele("Folder");
+  root.att("Browseable", "True");
+  root.att("Group", "Explorer");
+  root.att("Searchable", "True");
+  images.forEach(image => {
+    const iset = root.ele("ForegroundImageSet").ele("ImageSet");
+    Object.entries(image).forEach(([key, value]) => {
+      if (key === "_id") {
+        value = (value as ObjectId).toString();
+      }
+      iset.att(key, String(value));
+    });
+  });
+  root.end({ prettyPrint: true });
+
+  res.type("application/xml")
+  res.send(root.toString());
+
 });
 
 app.get('/data', async (req: Request, res: Response) => {
@@ -86,7 +111,7 @@ app.post('/scenes/create', async (req: Request, res: Response) => {
   }
 
   console.log("About to insert item");
-  collection.insertOne(scene).then((result) => {
+  sceneCollection.insertOne(scene).then((result) => {
     res.json({
       created: result.acknowledged,
       id: result.insertedId
@@ -125,7 +150,7 @@ app.post('/scenes/:id::action', async (req: Request, res: Response) => {
     return;
   }
 
-  collection.findOneAndUpdate(
+  sceneCollection.findOneAndUpdate(
     { "_id": new ObjectId(id) },
     { $set: settings },
     { returnDocument: "after" } // Return the modified document
@@ -140,7 +165,7 @@ app.post('/scenes/:id::action', async (req: Request, res: Response) => {
 
 app.get('/scenes/:sceneID', async (req: Request, res: Response) => {
 
-  const result = await collection.findOne({ "_id": new ObjectId(req.params.sceneID) });
+  const result = await sceneCollection.findOne({ "_id": new ObjectId(req.params.sceneID) });
   res.json(result);
 
 });

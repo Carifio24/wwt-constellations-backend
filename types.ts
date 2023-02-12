@@ -32,10 +32,12 @@ export function isScene(item: any): item is Scene {
   return urls.every(url => typeof url === "string");
 }
 
+export type OptionalFields<T> = {
+  [P in keyof T]?: OptionalFields<T[P]>
+}
+
 export type SceneKeys = keyof Scene | "id";
-export type SceneSettings = {
-  [K in keyof Scene]?: Scene[K];
-} & { id: string };
+export type SceneSettings = OptionalFields<Scene> & { id: string };
 
 export function isSceneSettings(item: any): item is SceneSettings {
   const types = (item.imageURLs === undefined || Array.isArray(item.imageURLs)) &&
