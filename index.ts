@@ -2,7 +2,7 @@ import express, { Express, Request, Response } from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import cors from "cors";
-import { parseXmlFromUrl } from "./util";
+import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { JSDOM } from 'jsdom';
 import { isScene, isSceneSettings } from './types';
 import { MongoClient, ObjectId, WithId, Document } from 'mongodb';
@@ -12,7 +12,7 @@ dotenv.config();
 
 const app: Express = express();
 app.use(cors());
-const port = 8000;
+const port = 7000;
 
 const jsonBodyParser = bodyParser.json();
 app.use(jsonBodyParser);
@@ -47,20 +47,30 @@ app.get('/', (_req: Request, res: Response) => {
 });
 
 app.get('/images', async (_req: Request, res: Response) => {
-  const images: WithId<Document>[] = await imageCollection.find({}).toArray();
+  const items: WithId<Document>[] = await imageCollection.find({}).toArray();
 
   const root = create().ele("Folder");
   root.att("Browseable", "True");
   root.att("Group", "Explorer");
   root.att("Searchable", "True");
-  images.forEach(image => {
+  items.forEach(item => {
     const iset = root.ele("ForegroundImageSet").ele("ImageSet");
-    Object.entries(image).forEach(([key, value]) => {
+    Object.entries(item["imageset"]).forEach(([key, value]) => {
+      iset.att(key, String(value));
+    });
+
+    Object.entries(item).forEach(([key, value]) => {
+      if (key === "imageset") {
+        return;
+      }
       if (key === "_id") {
         value = (value as ObjectId).toString();
       }
-      iset.att(key, String(value));
+      key = snakeToPascal(key);
+      const el = iset.ele(key);
+      el.txt(value);
     });
+
   });
   root.end({ prettyPrint: true });
 
