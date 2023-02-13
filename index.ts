@@ -58,7 +58,7 @@ app.get('/images', async (req: Request, res: Response) => {
   root.att("Group", "Explorer");
   root.att("Searchable", "True");
   items.forEach(item => {
-    const iset = root.ele("ForegroundImageSet").ele("ImageSet");
+    const iset = root.ele("ImageSet");
     Object.entries(item["imageset"]).forEach(([key, value]) => {
       iset.att(key, String(value));
     });
