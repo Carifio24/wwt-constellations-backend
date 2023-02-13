@@ -46,8 +46,12 @@ app.get('/', (_req: Request, res: Response) => {
   res.send('Express + TypeScript Server');
 });
 
-app.get('/images', async (_req: Request, res: Response) => {
-  const items: WithId<Document>[] = await imageCollection.find({}).toArray();
+app.get('/images', async (req: Request, res: Response) => {
+  const query = req.query;
+  const page = parseInt(query.page as string);
+  const size = parseInt(query.size as string);
+  const toSkip = (page - 1) * size;
+  const items: WithId<Document>[] = await imageCollection.find().skip(toSkip).limit(size).toArray();
 
   const root = create().ele("Folder");
   root.att("Browseable", "True");
