@@ -136,7 +136,6 @@ app.post('/scenes/create', async (req: Request, res: Response) => {
 });
 
 app.post('/scenes/:id::action', async (req: Request, res: Response) => {
-  console.log(req);
   const body = req.body;
   const settings = body.updates;
   const id = req.params.id;
@@ -169,6 +168,7 @@ app.post('/scenes/:id::action', async (req: Request, res: Response) => {
     { $set: settings },
     { returnDocument: "after" } // Return the modified document
   ).then((result) => {
+    console.log(result);
     const updated = (result.lastErrorObject) ? result.lastErrorObject['updatedExisting'] : false;
     res.json({
       updated,
