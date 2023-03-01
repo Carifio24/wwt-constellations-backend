@@ -27,6 +27,7 @@ export function isImagesetLayerDetails(item: any): item is ImagesetLayerDetails 
 export interface Scene {
   name: string;
   imagesetLayers: ImagesetLayerDetails[];
+  background: string;
   user: string;
   place: PlaceDetails;
 }
@@ -35,6 +36,7 @@ export function isScene(item: any): item is Scene {
   const types = Array.isArray(item.imagesetLayers) &&
                 typeof item.name === "string" &&
                 typeof item.user === "string" &&
+                typeof item.background == "string" &&
                 isPlaceDetails(item.place);
     if (!types) {
       return types;
