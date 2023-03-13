@@ -12,7 +12,10 @@ dotenv.config();
 
 const app: Express = express();
 app.use(cors());
-const port = 7000;
+
+// The Azure environment tells us which port to listen on:
+const portstr = process.env.PORT ?? "7000";
+const port = parseInt(portstr, 10);
 
 const jsonBodyParser = bodyParser.json();
 app.use(jsonBodyParser);
