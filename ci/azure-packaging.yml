@@ -1,0 +1,72 @@
+# Copyright 2020-2023 the .NET Foundation
+# Licensed under the MIT License
+
+# Create the release package.
+
+jobs:
+- job: main
+  pool:
+    vmImage: ubuntu-latest
+
+  steps:
+
+  # Set up the release commit. We do a `yarn install` to update the lockfile
+  # with the proper internal versions once Cranko has applied them.
+
+  - bash: |
+      set -euo pipefail
+      d="$(mktemp -d /tmp/cranko.XXXXXX)"
+      cd "$d"
+      curl --proto '=https' --tlsv1.2 -sSf https://pkgw.github.io/cranko/fetch-latest.sh | sh
+      echo "##vso[task.prependpath]$d"
+    displayName: Install latest Cranko (not Windows)
+
+  - task: NodeTool@0
+    displayName: Set up node.js
+    inputs:
+      versionSpec: '18'
+
+  - bash: cranko release-workflow apply-versions
+    displayName: Apply versions with Cranko
+
+  # The --no-immutable allows the yarn.lock file to be modified -- in CI, the
+  # default is that it can't be.
+  - bash: yarn install --no-immutable
+    displayName: yarn install
+
+  - bash: |
+      set -xeuo pipefail
+      git add .
+      cranko release-workflow commit
+      git show
+    displayName: Generate release commit
+
+  # Publish release commit as an artifact -- subsequent stages will need it.
+
+  - bash: |
+      mkdir $(Build.ArtifactStagingDirectory)/git-release
+      git bundle create $(Build.ArtifactStagingDirectory)/git-release/release.bundle origin/master..HEAD
+    displayName: Bundle release commit
+
+  - task: PublishPipelineArtifact@1
+    displayName: Publish git bundle artifact
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/git-release'
+      artifactName: git-release
+
+  # Now build the app package
+
+  - bash: yarn run build
+    displayName: yarn build
+
+  - task: ArchiveFiles@2
+    displayName: Create package
+    inputs:
+      rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+      includeRootFolder: false
+      archiveType: zip
+      archiveFile: $(Build.ArtifactStagingDirectory)/app-package-$(Build.BuildId).zip
+      replaceExistingArchive: true
+
+  - publish: $(Build.ArtifactStagingDirectory)/app-package-$(Build.BuildId).zip
+    artifact: app-package
