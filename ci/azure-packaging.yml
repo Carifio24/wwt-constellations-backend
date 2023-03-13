@@ -45,6 +45,7 @@ jobs:
 
   - bash: |
       mkdir $(Build.ArtifactStagingDirectory)/git-release
+      git branch -a # TEMP
       git bundle create $(Build.ArtifactStagingDirectory)/git-release/release.bundle origin/master..HEAD
     displayName: Bundle release commit
 
