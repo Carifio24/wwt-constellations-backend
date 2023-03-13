@@ -36,6 +36,7 @@ jobs:
 
   - bash: |
       set -xeuo pipefail
+      git tag bundlebase # for bundle creation below
       git add .
       cranko release-workflow commit
       git show
@@ -45,8 +46,7 @@ jobs:
 
   - bash: |
       mkdir $(Build.ArtifactStagingDirectory)/git-release
-      git branch -a # TEMP
-      git bundle create $(Build.ArtifactStagingDirectory)/git-release/release.bundle origin/master..HEAD
+      git bundle create $(Build.ArtifactStagingDirectory)/git-release/release.bundle bundlebase..HEAD
     displayName: Bundle release commit
 
   - task: PublishPipelineArtifact@1
