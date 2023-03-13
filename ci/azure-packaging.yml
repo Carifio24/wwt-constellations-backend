@@ -60,6 +60,11 @@ jobs:
   - bash: yarn run build
     displayName: yarn build
 
+  # I don't see a way to tell the ArchiveFiles task to ignore certain
+  # directories. We're almost done here, so ...
+  - bash: rm -rf .git
+    displayName: Clear out .git before creating package file
+
   - task: ArchiveFiles@2
     displayName: Create package
     inputs:
