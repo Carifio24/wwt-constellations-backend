@@ -18,7 +18,12 @@ const jsonBodyParser = bodyParser.json();
 app.use(jsonBodyParser);
 
 // Connect to CosmosDB
-const cosmos = new MongoClient(process.env.MONGO_CONNECTION_STRING ?? "");
+const connstr = process.env.AZURE_COSMOS_CONNECTIONSTRING ?? process.env.MONGO_CONNECTION_STRING;
+if (connstr === undefined) {
+  throw new Error("must define $AZURE_COSMOS_CONNECTIONSTRING or $MONGO_CONNECTION_STRING");
+}
+
+const cosmos = new MongoClient(connstr);
 (async () => {
   await cosmos.connect();
   console.log("Connected!");
