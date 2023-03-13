@@ -32,6 +32,7 @@ jobs:
         appName: wwtdev-cxbe
         runtimeStack: 'NODE|18-lts'
         package: $(Pipeline.Workspace)/app-package/app-package-$(Build.BuildId).zip
+        startUpCommand: yarn start
 
 # Deployment jobs that should only happen on updates to `rc`, i.e.
 # primary releases.
