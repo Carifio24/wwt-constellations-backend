@@ -1,0 +1,57 @@
+# Copyright 2020-2023 the .NET Foundation
+# Licensed under the MIT License
+
+parameters:
+- name: isMainDev
+  type: boolean
+  default: false
+- name: isRelease
+  type: boolean
+  default: false
+
+jobs:
+
+# TODO: flesh out our usual deployment processes (GitHub Releases, npmjs.org, Zenodo, etc.)
+
+# Deployment jobs that should only happen on updates to the main branch.
+
+- ${{ if parameters.isMainDev }}:
+  - job: deploy_dev
+    pool:
+      vmImage: ubuntu-latest
+    variables:
+    - group: Deployment Credentials
+    steps:
+    - template: azure-job-setup.yml
+
+    - task: AzureWebApp@1
+      displayName: Deploy app to dev environment
+      inputs:
+        azureSubscription: 'aas@wwtadmindotnetfoundation'
+        appType: webAppLinux
+        appName: wwtdev-cxbe
+        runtimeStack: 'NODE|18-lts'
+        package: $(Pipeline.Workspace)/app-package/app-package-$(Build.BuildId).zip
+
+# Deployment jobs that should only happen on updates to `rc`, i.e.
+# primary releases.
+
+- ${{ if parameters.isRelease }}:
+  - job: branch_and_tag
+    pool:
+      vmImage: ubuntu-latest
+    variables:
+    - group: Deployment Credentials
+    steps:
+    - template: azure-job-setup.yml
+      parameters:
+        setupGit: true
+    - bash: |
+        set -xeou pipefail
+        cranko release-workflow tag
+        git push --tags origin release:release
+      displayName: Tag and push
+      env:
+        GITHUB_TOKEN: $(GITHUB_TOKEN)
+
+  # TODO: the rest of the usual stuff

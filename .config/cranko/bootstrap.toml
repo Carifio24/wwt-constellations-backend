@@ -1,0 +1,6 @@
+[[project]]
+qnames = [
+    '@wwtelescope/constellations-api',
+    'npm',
+]
+version = '0.0.0'
