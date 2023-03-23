@@ -20,30 +20,25 @@ const port = parseInt(portstr, 10);
 const jsonBodyParser = bodyParser.json();
 app.use(jsonBodyParser);
 
-// Connect to CosmosDB
+// Prepare to connect to CosmosDB. We can't actually do anything useful with our
+// database variables until we connect to the DB, though, and that happens
+// asynchronously at the end of this file.
+
 const connstr = process.env.AZURE_COSMOS_CONNECTIONSTRING ?? process.env.MONGO_CONNECTION_STRING;
 if (connstr === undefined) {
   throw new Error("must define $AZURE_COSMOS_CONNECTIONSTRING or $MONGO_CONNECTION_STRING");
 }
 
 const cosmos = new MongoClient(connstr);
-(async () => {
-  await cosmos.connect();
-  console.log("Connected!");
-})();
-
 const database = cosmos.db("constellations-db");
-console.log(database);
 const sceneCollection = database.collection("scenes");
 const imageCollection = database.collection("images");
-
 
 let data: Document = new JSDOM().window.document;
 (async () => {
   const dataURL = "http://www.worldwidetelescope.org/wwtweb/catalog.aspx?W=astrophoto";
   data = await parseXmlFromUrl(dataURL);
 })();
-
 
 function checkAuthToken(_token: string) {
   // Just a stub for now
@@ -65,6 +60,7 @@ app.get('/images', async (req: Request, res: Response) => {
   root.att("Browseable", "True");
   root.att("Group", "Explorer");
   root.att("Searchable", "True");
+
   items.forEach(item => {
     const iset = root.ele("ImageSet");
     Object.entries(item["imageset"]).forEach(([key, value]) => {
@@ -84,11 +80,11 @@ app.get('/images', async (req: Request, res: Response) => {
     });
 
   });
+
   root.end({ prettyPrint: true });
 
   res.type("application/xml")
   res.send(root.toString());
-
 });
 
 app.get('/data', async (req: Request, res: Response) => {
@@ -103,10 +99,6 @@ app.get('/data', async (req: Request, res: Response) => {
   });
   res.type('application/xml');
   res.send(folder.outerHTML);
-});
-
-app.listen(port, () => {
-  console.log(`⚡️[server]: Server is running at https://localhost:${port}`);
 });
 
 app.post('/scenes/create', async (req: Request, res: Response) => {
@@ -186,8 +178,17 @@ app.post('/scenes/:id::action', async (req: Request, res: Response) => {
 });
 
 app.get('/scenes/:sceneID', async (req: Request, res: Response) => {
-
   const result = await sceneCollection.findOne({ "_id": new ObjectId(req.params.sceneID) });
   res.json(result);
-
 });
+
+// Let's get started!
+
+(async () => {
+  await cosmos.connect();
+  console.log("Connected to database!");
+
+  app.listen(port, () => {
+    console.log(`⚡️[server]: Server is running at https://localhost:${port}`);
+  });
+})();
