@@ -40,7 +40,25 @@ let data: Document = new JSDOM().window.document;
   data = await parseXmlFromUrl(dataURL);
 })();
 
-function checkAuthToken(_token: string) {
+function extractToken(req: Request): string | null {
+  const authHeader = req.headers.authorization;
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.substring(7);
+  }
+
+  if (req.query && typeof req.query.token === "string" && req.query.token) {
+    return req.query.token;
+  }
+
+  return null;
+}
+
+function checkAuthToken(token: string | null) {
+  if (token === null) {
+    return false;
+  }
+
   // Just a stub for now
   return true;
 }
@@ -114,7 +132,8 @@ app.post('/scenes/create', async (req: Request, res: Response) => {
     return;
   }
 
-  const validAuth = checkAuthToken(body.token);
+  const token = extractToken(req);
+  const validAuth = checkAuthToken(token);
   if (!validAuth) {
     res.statusCode = 400;
     res.json({
