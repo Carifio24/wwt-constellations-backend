@@ -1,4 +1,4 @@
-import express, { ErrorRequestHandler, Express, Request, Response } from "express";
+import express, { ErrorRequestHandler, Express, Request, RequestHandler, Response } from "express";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -11,6 +11,7 @@ import { create } from "xmlbuilder2";
 import { Config, State } from "./globals";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { isScene, isSceneSettings } from "./types";
+import { initializeSceneEndpoints } from "./scenes";
 
 const config = new Config();
 
@@ -35,17 +36,6 @@ const requireAuth = expressjwt({
   algorithms: ["RS256"]
 });
 
-const noAuthErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
-  if (err.name === "UnauthorizedError") {
-    res.status(401).json({
-      error: true,
-      message: "Invalid authentication token"
-    });
-  } else {
-    next(err);
-  }
-};
-
 // Prepare to connect to the Mongo server. We can"t actually do anything useful
 // with our database variables until we connect to the DB, though, and that
 // happens asynchronously at the end of this file.
@@ -53,21 +43,29 @@ const noAuthErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
 const dbserver = new MongoClient(config.mongoConnectionString);
 const database = dbserver.db(config.mongoDbName);
 
-// Here's the assembled state:
+// Put it all together.
 
-const state = new State(config, app, database.collection("scenes"), database.collection("images"));
+const state = new State(
+  config,
+  app,
+  requireAuth,
+  database.collection("scenes"),
+  database.collection("images")
+);
 
-// Code to be migrated:
+state.app.get("/", (_req: Request, res: Response) => {
+  res.send("Express + TypeScript Server");
+});
+
+initializeSceneEndpoints(state);
+
+// Endpoints to be migrated:
 
 let data: Document = new JSDOM().window.document;
 (async () => {
   const dataURL = "http://www.worldwidetelescope.org/wwtweb/catalog.aspx?W=astrophoto";
   data = await parseXmlFromUrl(dataURL);
 })();
-
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Express + TypeScript Server");
-});
 
 app.get("/images", async (req: Request, res: Response) => {
   const query = req.query;
@@ -119,70 +117,6 @@ app.get("/data", async (req: Request, res: Response) => {
   });
   res.type("application/xml");
   res.send(folder.outerHTML);
-});
-
-app.post("/scenes/create", requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
-  const body = req.body;
-  let scene = body.scene;
-
-  if (!isScene(scene)) {
-    res.statusCode = 400;
-    res.json({
-      created: false,
-      message: "Malformed scene JSON"
-    });
-    return;
-  }
-
-  console.log("auth info", req.auth);
-
-  console.log("About to insert item");
-  state.scenes.insertOne(scene).then((result) => {
-    res.json({
-      created: result.acknowledged,
-      id: result.insertedId
-    });
-  });
-});
-
-app.post("/scenes/:id::action", requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
-  console.log("???");
-  const body = req.body;
-  const settings = body.updates;
-  const id = req.params.id;
-
-  if (req.params.action !== "update") {
-    console.log(`No such supported action ${req.params.action}`);
-  }
-
-  if (!isSceneSettings(settings)) {
-    res.statusCode = 400;
-    res.json({
-      updated: false,
-      message: "At least one of your fields is not a valid scene field"
-    });
-    return;
-  }
-
-  console.log("auth info", req.auth);
-
-  state.scenes.findOneAndUpdate(
-    { "_id": new ObjectId(id) },
-    { $set: settings },
-    { returnDocument: "after" } // Return the modified document
-  ).then((result) => {
-    console.log(result);
-    const updated = (result.lastErrorObject) ? result.lastErrorObject["updatedExisting"] : false;
-    res.json({
-      updated,
-      scene: result.value
-    });
-  });
-});
-
-app.get("/scenes/:sceneID", async (req: Request, res: Response) => {
-  const result = await state.scenes.findOne({ "_id": new ObjectId(req.params.sceneID) });
-  res.json(result);
 });
 
 // Let's get started!
