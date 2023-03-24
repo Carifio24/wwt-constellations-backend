@@ -1,13 +1,13 @@
-import express, { ErrorRequestHandler, Express, Request, Response } from 'express';
-import bodyParser from 'body-parser';
-import dotenv from 'dotenv';
+import express, { ErrorRequestHandler, Express, Request, Response } from "express";
+import bodyParser from "body-parser";
+import dotenv from "dotenv";
 import cors from "cors";
 import { expressjwt, GetVerificationKey, Request as JwtRequest } from "express-jwt";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
-import { JSDOM } from 'jsdom';
+import { JSDOM } from "jsdom";
 import jwksClient from "jwks-rsa";
-import { isScene, isSceneSettings } from './types';
-import { MongoClient, ObjectId, WithId, Document } from 'mongodb';
+import { isScene, isSceneSettings } from "./types";
+import { MongoClient, ObjectId, WithId, Document } from "mongodb";
 import { create } from "xmlbuilder2";
 
 dotenv.config();
@@ -47,7 +47,7 @@ const requireAuth = expressjwt({
   // can add `credentialsRequired: false` to make auth optional
   audience: "account",
   issuer: `${kcBaseUrl}realms/${kcRealm}`,
-  algorithms: ['RS256']
+  algorithms: ["RS256"]
 });
 
 const noAuthErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
@@ -61,7 +61,7 @@ const noAuthErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
   }
 };
 
-// Prepare to connect to CosmosDB. We can't actually do anything useful with our
+// Prepare to connect to CosmosDB. We can"t actually do anything useful with our
 // database variables until we connect to the DB, though, and that happens
 // asynchronously at the end of this file.
 
@@ -81,11 +81,11 @@ let data: Document = new JSDOM().window.document;
   data = await parseXmlFromUrl(dataURL);
 })();
 
-app.get('/', (_req: Request, res: Response) => {
-  res.send('Express + TypeScript Server');
+app.get("/", (_req: Request, res: Response) => {
+  res.send("Express + TypeScript Server");
 });
 
-app.get('/images', async (req: Request, res: Response) => {
+app.get("/images", async (req: Request, res: Response) => {
   const query = req.query;
   const page = parseInt(query.page as string);
   const size = parseInt(query.size as string);
@@ -123,7 +123,7 @@ app.get('/images', async (req: Request, res: Response) => {
   res.send(root.toString());
 });
 
-app.get('/data', async (req: Request, res: Response) => {
+app.get("/data", async (req: Request, res: Response) => {
   const query = req.query;
   const page = parseInt(query.page as string);
   const size = parseInt(query.limit as string);
@@ -133,11 +133,11 @@ app.get('/data', async (req: Request, res: Response) => {
   items.forEach(item => {
     folder.appendChild(item.cloneNode(true))
   });
-  res.type('application/xml');
+  res.type("application/xml");
   res.send(folder.outerHTML);
 });
 
-app.post('/scenes/create', requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
+app.post("/scenes/create", requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
   const body = req.body;
   let scene = body.scene;
 
@@ -163,7 +163,7 @@ app.post('/scenes/create', requireAuth, noAuthErrorHandler, async (req: JwtReque
 
 });
 
-app.post('/scenes/:id::action', requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
+app.post("/scenes/:id::action", requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
   console.log("???");
   const body = req.body;
   const settings = body.updates;
@@ -190,7 +190,7 @@ app.post('/scenes/:id::action', requireAuth, noAuthErrorHandler, async (req: Jwt
     { returnDocument: "after" } // Return the modified document
   ).then((result) => {
     console.log(result);
-    const updated = (result.lastErrorObject) ? result.lastErrorObject['updatedExisting'] : false;
+    const updated = (result.lastErrorObject) ? result.lastErrorObject["updatedExisting"] : false;
     res.json({
       updated,
       scene: result.value
@@ -198,7 +198,7 @@ app.post('/scenes/:id::action', requireAuth, noAuthErrorHandler, async (req: Jwt
   });
 });
 
-app.get('/scenes/:sceneID', async (req: Request, res: Response) => {
+app.get("/scenes/:sceneID", async (req: Request, res: Response) => {
   const result = await sceneCollection.findOne({ "_id": new ObjectId(req.params.sceneID) });
   res.json(result);
 });
