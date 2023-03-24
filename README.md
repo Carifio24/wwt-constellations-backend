@@ -8,7 +8,8 @@ variable) and (soon!) a [Keycloak server][keycloak].
 [MongoDB]: https://www.mongodb.com/
 
 The [WWT Constellations frontend server][frontend] communicates with this
-backend to create the WWT Constellations app experience.
+backend to create the WWT Constellations app experience. See the frontend README
+for information on how to start up a development Keycloak server.
 
 [frontend]: https://github.com/WorldWideTelescope/wwt-constellations-frontend/
 

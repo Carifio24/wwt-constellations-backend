@@ -1,9 +1,11 @@
-import express, { Express, Request, Response } from 'express';
+import express, { ErrorRequestHandler, Express, Request, Response } from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv';
 import cors from "cors";
+import { expressjwt, GetVerificationKey, Request as JwtRequest } from "express-jwt";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { JSDOM } from 'jsdom';
+import jwksClient from "jwks-rsa";
 import { isScene, isSceneSettings } from './types';
 import { MongoClient, ObjectId, WithId, Document } from 'mongodb';
 import { create } from "xmlbuilder2";
@@ -19,6 +21,45 @@ const port = parseInt(portstr, 10);
 
 const jsonBodyParser = bodyParser.json();
 app.use(jsonBodyParser);
+
+// Set up authentication
+
+const kcBaseUrl = (() => {
+  let b = process.env.KEYCLOAK_URL ?? "http://localhost:8080/";
+
+  if (!b.endsWith("/")) {
+    b += "/";
+  }
+
+  return b;
+})();
+
+const kcRealm = "constellations";
+
+const requireAuth = expressjwt({
+  secret: jwksClient.expressJwtSecret({
+    cache: true,
+    rateLimit: true,
+    jwksRequestsPerMinute: 5,
+    jwksUri: `${kcBaseUrl}realms/${kcRealm}/protocol/openid-connect/certs`
+  }) as GetVerificationKey,
+
+  // can add `credentialsRequired: false` to make auth optional
+  audience: "account",
+  issuer: `${kcBaseUrl}realms/${kcRealm}`,
+  algorithms: ['RS256']
+});
+
+const noAuthErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
+  if (err.name === "UnauthorizedError") {
+    res.status(401).json({
+      error: true,
+      message: "Invalid authentication token"
+    });
+  } else {
+    next(err);
+  }
+};
 
 // Prepare to connect to CosmosDB. We can't actually do anything useful with our
 // database variables until we connect to the DB, though, and that happens
@@ -39,29 +80,6 @@ let data: Document = new JSDOM().window.document;
   const dataURL = "http://www.worldwidetelescope.org/wwtweb/catalog.aspx?W=astrophoto";
   data = await parseXmlFromUrl(dataURL);
 })();
-
-function extractToken(req: Request): string | null {
-  const authHeader = req.headers.authorization;
-
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    return authHeader.substring(7);
-  }
-
-  if (req.query && typeof req.query.token === "string" && req.query.token) {
-    return req.query.token;
-  }
-
-  return null;
-}
-
-function checkAuthToken(token: string | null) {
-  if (token === null) {
-    return false;
-  }
-
-  // Just a stub for now
-  return true;
-}
 
 app.get('/', (_req: Request, res: Response) => {
   res.send('Express + TypeScript Server');
@@ -119,7 +137,7 @@ app.get('/data', async (req: Request, res: Response) => {
   res.send(folder.outerHTML);
 });
 
-app.post('/scenes/create', async (req: Request, res: Response) => {
+app.post('/scenes/create', requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
   const body = req.body;
   let scene = body.scene;
 
@@ -132,16 +150,7 @@ app.post('/scenes/create', async (req: Request, res: Response) => {
     return;
   }
 
-  const token = extractToken(req);
-  const validAuth = checkAuthToken(token);
-  if (!validAuth) {
-    res.statusCode = 400;
-    res.json({
-      created: false,
-      message: "Invalid authentication token"
-    });
-    return;
-  }
+  console.log("auth info", req.auth);
 
   console.log("About to insert item");
   sceneCollection.insertOne(scene).then((result) => {
@@ -154,7 +163,8 @@ app.post('/scenes/create', async (req: Request, res: Response) => {
 
 });
 
-app.post('/scenes/:id::action', async (req: Request, res: Response) => {
+app.post('/scenes/:id::action', requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
+  console.log("???");
   const body = req.body;
   const settings = body.updates;
   const id = req.params.id;
@@ -172,15 +182,7 @@ app.post('/scenes/:id::action', async (req: Request, res: Response) => {
     return;
   }
 
-  const validAuth = checkAuthToken(body.token);
-  if (!validAuth) {
-    res.statusCode = 400;
-    res.json({
-      updated: false,
-      message: "Invalid authentication token"
-    });
-    return;
-  }
+  console.log("auth info", req.auth);
 
   sceneCollection.findOneAndUpdate(
     { "_id": new ObjectId(id) },
