@@ -3,50 +3,35 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
 import { expressjwt, GetVerificationKey, Request as JwtRequest } from "express-jwt";
-import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { JSDOM } from "jsdom";
 import jwksClient from "jwks-rsa";
-import { isScene, isSceneSettings } from "./types";
 import { MongoClient, ObjectId, WithId, Document } from "mongodb";
 import { create } from "xmlbuilder2";
 
-dotenv.config();
+import { Config, State } from "./globals";
+import { parseXmlFromUrl, snakeToPascal } from "./util";
+import { isScene, isSceneSettings } from "./types";
+
+const config = new Config();
+
+// Start setting up the server and global middleware
 
 const app: Express = express();
+
 app.use(cors());
-
-// The Azure environment tells us which port to listen on:
-const portstr = process.env.PORT ?? "7000";
-const port = parseInt(portstr, 10);
-
-const jsonBodyParser = bodyParser.json();
-app.use(jsonBodyParser);
-
-// Set up authentication
-
-const kcBaseUrl = (() => {
-  let b = process.env.KEYCLOAK_URL ?? "http://localhost:8080/";
-
-  if (!b.endsWith("/")) {
-    b += "/";
-  }
-
-  return b;
-})();
-
-const kcRealm = "constellations";
+app.use(bodyParser.json());
 
 const requireAuth = expressjwt({
   secret: jwksClient.expressJwtSecret({
     cache: true,
     rateLimit: true,
     jwksRequestsPerMinute: 5,
-    jwksUri: `${kcBaseUrl}realms/${kcRealm}/protocol/openid-connect/certs`
+    jwksUri: `${config.kcBaseUrl}realms/${config.kcRealm}/protocol/openid-connect/certs`
   }) as GetVerificationKey,
 
   // can add `credentialsRequired: false` to make auth optional
   audience: "account",
-  issuer: `${kcBaseUrl}realms/${kcRealm}`,
+  issuer: `${config.kcBaseUrl}realms/${config.kcRealm}`,
   algorithms: ["RS256"]
 });
 
@@ -61,19 +46,18 @@ const noAuthErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
   }
 };
 
-// Prepare to connect to CosmosDB. We can"t actually do anything useful with our
-// database variables until we connect to the DB, though, and that happens
-// asynchronously at the end of this file.
+// Prepare to connect to the Mongo server. We can"t actually do anything useful
+// with our database variables until we connect to the DB, though, and that
+// happens asynchronously at the end of this file.
 
-const connstr = process.env.AZURE_COSMOS_CONNECTIONSTRING ?? process.env.MONGO_CONNECTION_STRING;
-if (connstr === undefined) {
-  throw new Error("must define $AZURE_COSMOS_CONNECTIONSTRING or $MONGO_CONNECTION_STRING");
-}
+const dbserver = new MongoClient(config.mongoConnectionString);
+const database = dbserver.db(config.mongoDbName);
 
-const cosmos = new MongoClient(connstr);
-const database = cosmos.db("constellations-db");
-const sceneCollection = database.collection("scenes");
-const imageCollection = database.collection("images");
+// Here's the assembled state:
+
+const state = new State(config, app, database.collection("scenes"), database.collection("images"));
+
+// Code to be migrated:
 
 let data: Document = new JSDOM().window.document;
 (async () => {
@@ -90,7 +74,7 @@ app.get("/images", async (req: Request, res: Response) => {
   const page = parseInt(query.page as string);
   const size = parseInt(query.size as string);
   const toSkip = (page - 1) * size;
-  const items: WithId<Document>[] = await imageCollection.find().skip(toSkip).limit(size).toArray();
+  const items: WithId<Document>[] = await state.images.find().skip(toSkip).limit(size).toArray();
 
   const root = create().ele("Folder");
   root.att("Browseable", "True");
@@ -153,14 +137,12 @@ app.post("/scenes/create", requireAuth, noAuthErrorHandler, async (req: JwtReque
   console.log("auth info", req.auth);
 
   console.log("About to insert item");
-  sceneCollection.insertOne(scene).then((result) => {
+  state.scenes.insertOne(scene).then((result) => {
     res.json({
       created: result.acknowledged,
       id: result.insertedId
     });
   });
-
-
 });
 
 app.post("/scenes/:id::action", requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
@@ -184,7 +166,7 @@ app.post("/scenes/:id::action", requireAuth, noAuthErrorHandler, async (req: Jwt
 
   console.log("auth info", req.auth);
 
-  sceneCollection.findOneAndUpdate(
+  state.scenes.findOneAndUpdate(
     { "_id": new ObjectId(id) },
     { $set: settings },
     { returnDocument: "after" } // Return the modified document
@@ -199,17 +181,17 @@ app.post("/scenes/:id::action", requireAuth, noAuthErrorHandler, async (req: Jwt
 });
 
 app.get("/scenes/:sceneID", async (req: Request, res: Response) => {
-  const result = await sceneCollection.findOne({ "_id": new ObjectId(req.params.sceneID) });
+  const result = await state.scenes.findOne({ "_id": new ObjectId(req.params.sceneID) });
   res.json(result);
 });
 
 // Let's get started!
 
 (async () => {
-  await cosmos.connect();
+  await dbserver.connect();
   console.log("Connected to database!");
 
-  app.listen(port, () => {
-    console.log(`⚡️[server]: Server is running at https://localhost:${port}`);
+  app.listen(config.port, () => {
+    console.log(`⚡️[server]: Server is running at https://localhost:${config.port}`);
   });
 })();
