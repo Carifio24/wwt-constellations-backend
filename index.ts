@@ -1,8 +1,7 @@
-import express, { ErrorRequestHandler, Express, Request, RequestHandler, Response } from "express";
+import express, { Express, Request, Response } from "express";
 import bodyParser from "body-parser";
-import dotenv from "dotenv";
 import cors from "cors";
-import { expressjwt, GetVerificationKey, Request as JwtRequest } from "express-jwt";
+import { expressjwt, GetVerificationKey } from "express-jwt";
 import { JSDOM } from "jsdom";
 import jwksClient from "jwks-rsa";
 import { MongoClient, ObjectId, WithId, Document } from "mongodb";
@@ -10,7 +9,6 @@ import { create } from "xmlbuilder2";
 
 import { Config, State } from "./globals";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
-import { isScene, isSceneSettings } from "./types";
 import { initializeSceneEndpoints } from "./scenes";
 
 const config = new Config();
