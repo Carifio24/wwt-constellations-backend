@@ -10,6 +10,7 @@ import { create } from "xmlbuilder2";
 import { Config, State } from "./globals";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { initializeSceneEndpoints } from "./scenes";
+import { initializeSuperuserEndpoints } from "./superuser";
 
 const config = new Config();
 
@@ -56,6 +57,7 @@ state.app.get("/", (_req: Request, res: Response) => {
 });
 
 initializeSceneEndpoints(state);
+initializeSuperuserEndpoints(state);
 
 // Endpoints to be migrated:
 
