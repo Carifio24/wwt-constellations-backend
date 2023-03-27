@@ -106,4 +106,45 @@ export function initializeSuperuserEndpoints(state: State) {
       }
     }
   );
+
+  // Superuser for now: adding an owner on a handle.
+
+  const HandleOwnerAdd = t.type({
+    handle: t.string,
+    account_id: t.string,
+  });
+
+  type HandleOwnerAddT = t.TypeOf<typeof HandleOwnerAdd>;
+
+  state.app.post(
+    "/handles/add-owner",
+    state.requireAuth,
+    noAuthErrorHandler,
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      const maybe = HandleOwnerAdd.decode(req.body);
+
+      if (isLeft(maybe)) {
+        res.statusCode = 400;
+        res.json({ error: true, message: "Submission did not match schema" });
+        return;
+      }
+
+      const input: HandleOwnerAddT = maybe.right;
+
+      try {
+        state.handles.findOneAndUpdate(
+          { "handle": input.handle },
+          { $addToSet: { "owner_accounts": input.account_id } },
+          { returnDocument: "after" }
+        ).then((_result) => {
+          res.json({ error: false });
+        });
+      } catch (err) {
+        console.error("/handles/add-owner exception:", err);
+        res.statusCode = 500;
+        res.json({ error: true, message: "Database error in /handles/add-owner" });
+      }
+    }
+  );
 }

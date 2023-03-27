@@ -2,6 +2,8 @@ import { Express, RequestHandler } from "express";
 import dotenv from "dotenv";
 import { Collection, Document } from "mongodb";
 
+import { MongoHandle } from "./handles";
+
 export class Config {
   // The port number on which the server will listen.
   port: number;
@@ -55,7 +57,7 @@ export class State {
   requireAuth: RequestHandler;
   scenes: Collection<Document>;
   images: Collection<Document>;
-  handles: Collection<Document>;
+  handles: Collection<MongoHandle>;
 
   constructor(
     config: Config,
@@ -63,7 +65,7 @@ export class State {
     requireAuth: RequestHandler,
     scenes: Collection<Document>,
     images: Collection<Document>,
-    handles: Collection<Document>,
+    handles: Collection<MongoHandle>,
   ) {
     this.config = config;
     this.app = app;

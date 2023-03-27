@@ -7,6 +7,7 @@ import { create } from "xmlbuilder2";
 
 import { Config, State } from "./globals";
 import { makeRequireAuthMiddleware } from "./auth";
+import { MongoHandle } from "./handles";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { initializeSceneEndpoints } from "./scenes";
 import { initializeSuperuserEndpoints } from "./superuser";
@@ -37,7 +38,7 @@ const state = new State(
   requireAuth,
   database.collection("scenes"),
   database.collection("images"),
-  database.collection("handles"),
+  database.collection<MongoHandle>("handles"),
 );
 
 state.app.get("/", (_req: Request, res: Response) => {
