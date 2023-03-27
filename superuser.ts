@@ -9,10 +9,8 @@ import { NextFunction, Response, RequestHandler } from "express";
 import { Request as JwtRequest } from "express-jwt";
 import * as t from "io-ts";
 import { isLeft } from "fp-ts/Either";
-import { Timestamp } from "mongodb";
 
 import { State } from "./globals";
-import { noAuthErrorHandler } from "./auth";
 
 export function initializeSuperuserEndpoints(state: State) {
   const amISuperuser = (req: JwtRequest) => {
@@ -23,7 +21,7 @@ export function initializeSuperuserEndpoints(state: State) {
   // whether to show UI related to superuser activities. Since one can invoke
   // the superuser backend APIs directly, this is purely superficial
   // functionality.
-  state.app.get("/misc/amisuperuser", state.requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
+  state.app.get("/misc/amisuperuser", async (req: JwtRequest, res: Response) => {
     res.json({
       result: amISuperuser(req),
     });
@@ -45,8 +43,6 @@ export function initializeSuperuserEndpoints(state: State) {
   // Set up some configuration of our backing database.
   state.app.post(
     "/misc/config-database",
-    state.requireAuth,
-    noAuthErrorHandler,
     requireSuperuser,
     async (_req: JwtRequest, res: Response) => {
       await state.handles.createIndex({ "handle": 1 }, { unique: true });
@@ -65,8 +61,6 @@ export function initializeSuperuserEndpoints(state: State) {
 
   state.app.post(
     "/handles/create",
-    state.requireAuth,
-    noAuthErrorHandler,
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const maybe = HandleCreation.decode(req.body);
@@ -118,8 +112,6 @@ export function initializeSuperuserEndpoints(state: State) {
 
   state.app.post(
     "/handles/add-owner",
-    state.requireAuth,
-    noAuthErrorHandler,
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const maybe = HandleOwnerAdd.decode(req.body);

@@ -6,7 +6,7 @@ import { MongoClient, ObjectId, WithId, Document } from "mongodb";
 import { create } from "xmlbuilder2";
 
 import { Config, State } from "./globals";
-import { makeRequireAuthMiddleware } from "./auth";
+import { makeCheckAuthMiddleware } from "./auth";
 import { MongoHandle } from "./handles";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { initializeSceneEndpoints } from "./scenes";
@@ -20,8 +20,7 @@ const app: Express = express();
 
 app.use(cors());
 app.use(bodyParser.json());
-
-const requireAuth = makeRequireAuthMiddleware(config);
+app.use(makeCheckAuthMiddleware(config));
 
 // Prepare to connect to the Mongo server. We can"t actually do anything useful
 // with our database variables until we connect to the DB, though, and that
@@ -35,7 +34,6 @@ const database = dbserver.db(config.mongoDbName);
 const state = new State(
   config,
   app,
-  requireAuth,
   database.collection("scenes"),
   database.collection("images"),
   database.collection<MongoHandle>("handles"),

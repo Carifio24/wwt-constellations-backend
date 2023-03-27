@@ -4,10 +4,10 @@ import { ObjectId } from "mongodb";
 
 import { State } from "./globals";
 import { isScene, isSceneSettings } from "./types";
-import { noAuthErrorHandler } from "./auth";
 
 export function initializeSceneEndpoints(state: State) {
-  state.app.post("/scenes/create", state.requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
+  // TODO: associate with a handle and require that we have permissions on it!!!
+  state.app.post("/scenes/create", async (req: JwtRequest, res: Response) => {
     const body = req.body;
     let scene = body.scene;
 
@@ -31,7 +31,8 @@ export function initializeSceneEndpoints(state: State) {
     });
   });
 
-  state.app.post("/scenes/:id::action", state.requireAuth, noAuthErrorHandler, async (req: JwtRequest, res: Response) => {
+  // TODO: associate with a handle and require that we have permissions on it!!!
+  state.app.post("/scenes/:id::action", async (req: JwtRequest, res: Response) => {
     console.log("???");
     const body = req.body;
     const settings = body.updates;

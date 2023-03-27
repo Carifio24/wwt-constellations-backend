@@ -2,13 +2,13 @@
 
 // Some authentication-related helpers.
 
-import { ErrorRequestHandler, RequestHandler } from "express";
+import { RequestHandler } from "express";
 import { expressjwt, GetVerificationKey } from "express-jwt";
 import jwksClient from "jwks-rsa";
 
 import { Config } from "./globals";
 
-export function makeRequireAuthMiddleware(config: Config): RequestHandler {
+export function makeCheckAuthMiddleware(config: Config): RequestHandler {
   return expressjwt({
     secret: jwksClient.expressJwtSecret({
       cache: true,
@@ -17,20 +17,9 @@ export function makeRequireAuthMiddleware(config: Config): RequestHandler {
       jwksUri: `${config.kcBaseUrl}realms/${config.kcRealm}/protocol/openid-connect/certs`
     }) as GetVerificationKey,
 
-    // can add `credentialsRequired: false` to make auth optional
+    credentialsRequired: false,
     audience: "account",
     issuer: `${config.kcBaseUrl}realms/${config.kcRealm}`,
     algorithms: ["RS256"]
   });
 }
-
-export const noAuthErrorHandler: ErrorRequestHandler = (err, _req, res, next) => {
-  if (err.name === "UnauthorizedError") {
-    res.status(401).json({
-      error: true,
-      message: "Invalid authentication token"
-    });
-  } else {
-    next(err);
-  }
-};

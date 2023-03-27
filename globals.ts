@@ -1,4 +1,4 @@
-import { Express, RequestHandler } from "express";
+import { Express } from "express";
 import dotenv from "dotenv";
 import { Collection, Document } from "mongodb";
 
@@ -54,7 +54,6 @@ export class Config {
 export class State {
   config: Config;
   app: Express;
-  requireAuth: RequestHandler;
   scenes: Collection<Document>;
   images: Collection<Document>;
   handles: Collection<MongoHandle>;
@@ -62,14 +61,12 @@ export class State {
   constructor(
     config: Config,
     app: Express,
-    requireAuth: RequestHandler,
     scenes: Collection<Document>,
     images: Collection<Document>,
     handles: Collection<MongoHandle>,
   ) {
     this.config = config;
     this.app = app;
-    this.requireAuth = requireAuth;
     this.scenes = scenes;
     this.images = images;
     this.handles = handles;
