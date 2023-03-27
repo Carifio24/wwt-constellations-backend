@@ -2,7 +2,7 @@
 
 This is an ExpressJS web server that communicates with a [MongoDB] storage
 backend (location specified with the `MONGO_CONNECTION_STRING` environement
-variable) and (soon!) a [Keycloak server][keycloak].
+variable) and a [Keycloak server][keycloak] (specified with `KEYCLOAK_URL`).
 
 [keycloak]: https://www.keycloak.org/
 [MongoDB]: https://www.mongodb.com/
@@ -45,6 +45,11 @@ Environment variables:
 - `PORT` to set the port for the server to listen on; default is 7000.
 - `MONGO_CONNECTION_STRING` to set the path to MongoDB server; must be specified.
   - `AZURE_COSMOS_CONNECTIONSTRING` has the same effect and higher priority
+- `KEYCLOAK_URL` to set the location of the Keycloak server; default is
+  `http://localhost:8080/`. If the value of this setting does not end with a slash,
+  the server appends one internally.
+- `CX_SUPERUSER_ACCOUNT_ID` sets the Keycloak account ID of an account that can
+  perform some special administrative tasks.
 
 
 ## MongoDB Development Server

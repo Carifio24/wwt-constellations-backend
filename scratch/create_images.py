@@ -39,6 +39,6 @@ with open(os.path.join(os.path.dirname(__file__), "testing_images.json"), "w") a
 
 uri = os.environ.get("MONGO_CONNECTION_STRING", "mongodb://127.0.0.1:27017")
 client = MongoClient(uri)
-database = client["constellations-db"]
+database = client["constellations"]
 collection = database["images"]
 collection.insert_many(imagesets)
