@@ -316,6 +316,8 @@ __metadata:
     express: ^4.18.2
     express-jwt: ^8.4
     fast-xml-parser: ^4.0.12
+    fp-ts: ^2.13
+    io-ts: ^2.2
     jsdom: ^20.0.3
     jwks-rsa: ^3.0
     mongodb: ^5.0.1
@@ -829,6 +831,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"fp-ts@npm:^2.13":
+  version: 2.13.1
+  resolution: "fp-ts@npm:2.13.1"
+  checksum: 618e0028aca9ff1d52b86f438499ccab149825bdab14c678d22c3e2ccbf9d36fd1f26d463bf0ae1e63f5cd79dd54c8218af2cca0daeea68b039307b751ae9563
+  languageName: node
+  linkType: hard
+
 "fresh@npm:0.5.2":
   version: 0.5.2
   resolution: "fresh@npm:0.5.2"
@@ -935,6 +944,15 @@ __metadata:
   version: 2.0.4
   resolution: "inherits@npm:2.0.4"
   checksum: 4a48a733847879d6cf6691860a6b1e3f0f4754176e4d71494c41f3475553768b10f84b5ce1d40fbd0e34e6bfbb864ee35858ad4dd2cf31e02fc4a154b724d7f1
+  languageName: node
+  linkType: hard
+
+"io-ts@npm:^2.2":
+  version: 2.2.20
+  resolution: "io-ts@npm:2.2.20"
+  peerDependencies:
+    fp-ts: ^2.5.0
+  checksum: 72517bf72ab1ad61b81960cb37f46e7a9f6dc84235b7d9b62f346ca84120dd89134b652fc3a0b9751129331084fd3e059349561bb96587d91ba7b40985fe7aac
   languageName: node
   linkType: hard
 

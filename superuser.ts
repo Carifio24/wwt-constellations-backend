@@ -1,12 +1,15 @@
-// Copyright 2023 the WorldWide Telescope project
+// Copyright 2023 the .NET Foundation
 
 // An ultra-limited set of APIs for "superuser" operations that are hardcoded to
 // one user account at runtime. The idea is to make the cross-section here as
 // small as possible, with other admin-level operations happening through more
 // standardized IAM channels.
 
-import { Response } from "express";
+import { NextFunction, Response, RequestHandler } from "express";
 import { Request as JwtRequest } from "express-jwt";
+import * as t from "io-ts";
+import { isLeft } from "fp-ts/Either";
+import { Timestamp } from "mongodb";
 
 import { State } from "./globals";
 import { noAuthErrorHandler } from "./auth";
@@ -25,4 +28,82 @@ export function initializeSuperuserEndpoints(state: State) {
       result: amISuperuser(req),
     });
   });
+
+  // A middleware to require that the request comes from the superuser account.
+  const requireSuperuser: RequestHandler = (req: JwtRequest, res: Response, next: NextFunction) => {
+    if (!amISuperuser(req)) {
+      res.status(401).json({
+        error: true,
+        message: "Not authorized"
+      });
+    } else {
+      console.warn("executing superuser API call:", req.path);
+      next();
+    }
+  }
+
+  // Set up some configuration of our backing database.
+  state.app.post(
+    "/misc/config-database",
+    state.requireAuth,
+    noAuthErrorHandler,
+    requireSuperuser,
+    async (_req: JwtRequest, res: Response) => {
+      await state.handles.createIndex({ "handle": 1 }, { unique: true });
+      res.json({ error: false });
+    }
+  );
+
+  // Superuser for now: creating a new handle.
+
+  const HandleCreation = t.type({
+    handle: t.string,
+    display_name: t.string,
+  });
+
+  type HandleCreationT = t.TypeOf<typeof HandleCreation>;
+
+  state.app.post(
+    "/handles/create",
+    state.requireAuth,
+    noAuthErrorHandler,
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      const maybe = HandleCreation.decode(req.body);
+
+      if (isLeft(maybe)) {
+        res.statusCode = 400;
+        res.json({ error: true, message: "Submission did not match schema" });
+        return;
+      }
+
+      const input: HandleCreationT = maybe.right;
+
+      const new_rec = {
+        handle: input.handle,
+        display_name: input.display_name,
+        creation_date: new Date(),
+        owner_accounts: [],
+      };
+
+      // From my understand of the Express docs, exceptions in await expressions
+      // shouldn't crash the server, but a duplicate submission here does just
+      // that.
+
+      try {
+        const result = await state.handles.insertOne(new_rec);
+
+        res.json({
+          error: false,
+          id: "" + result.insertedId
+        });
+      } catch (err) {
+        console.error("/handles/create exception:", err);
+        // We'll call this a 400, not a 500, since this particular error is
+        // likely a duplicate handle name.
+        res.statusCode = 400;
+        res.json({ error: true, message: "Database error creating new handle" });
+      }
+    }
+  );
 }

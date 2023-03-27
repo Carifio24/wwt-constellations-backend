@@ -36,7 +36,8 @@ const state = new State(
   app,
   requireAuth,
   database.collection("scenes"),
-  database.collection("images")
+  database.collection("images"),
+  database.collection("handles"),
 );
 
 state.app.get("/", (_req: Request, res: Response) => {

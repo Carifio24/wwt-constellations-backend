@@ -55,12 +55,21 @@ export class State {
   requireAuth: RequestHandler;
   scenes: Collection<Document>;
   images: Collection<Document>;
+  handles: Collection<Document>;
 
-  constructor(config: Config, app: Express, requireAuth: RequestHandler, scenes: Collection<Document>, images: Collection<Document>) {
+  constructor(
+    config: Config,
+    app: Express,
+    requireAuth: RequestHandler,
+    scenes: Collection<Document>,
+    images: Collection<Document>,
+    handles: Collection<Document>,
+  ) {
     this.config = config;
     this.app = app;
     this.requireAuth = requireAuth;
     this.scenes = scenes;
     this.images = images;
+    this.handles = handles;
   }
 }
