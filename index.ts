@@ -1,13 +1,14 @@
 import express, { Express, Request, Response } from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
-import { expressjwt, GetVerificationKey } from "express-jwt";
 import { JSDOM } from "jsdom";
-import jwksClient from "jwks-rsa";
 import { MongoClient, ObjectId, WithId, Document } from "mongodb";
 import { create } from "xmlbuilder2";
 
 import { Config, State } from "./globals";
+import { makeCheckAuthMiddleware } from "./auth";
+import { initializeHandleEndpoints, MongoHandle } from "./handles";
+import { initializeImageEndpoints, MongoImage } from "./images";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { initializeSceneEndpoints } from "./scenes";
 import { initializeSuperuserEndpoints } from "./superuser";
@@ -20,20 +21,7 @@ const app: Express = express();
 
 app.use(cors());
 app.use(bodyParser.json());
-
-const requireAuth = expressjwt({
-  secret: jwksClient.expressJwtSecret({
-    cache: true,
-    rateLimit: true,
-    jwksRequestsPerMinute: 5,
-    jwksUri: `${config.kcBaseUrl}realms/${config.kcRealm}/protocol/openid-connect/certs`
-  }) as GetVerificationKey,
-
-  // can add `credentialsRequired: false` to make auth optional
-  audience: "account",
-  issuer: `${config.kcBaseUrl}realms/${config.kcRealm}`,
-  algorithms: ["RS256"]
-});
+app.use(makeCheckAuthMiddleware(config));
 
 // Prepare to connect to the Mongo server. We can"t actually do anything useful
 // with our database variables until we connect to the DB, though, and that
@@ -47,15 +35,17 @@ const database = dbserver.db(config.mongoDbName);
 const state = new State(
   config,
   app,
-  requireAuth,
   database.collection("scenes"),
-  database.collection("images")
+  database.collection<MongoImage>("images"),
+  database.collection<MongoHandle>("handles"),
 );
 
 state.app.get("/", (_req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
 
+initializeHandleEndpoints(state);
+initializeImageEndpoints(state);
 initializeSceneEndpoints(state);
 initializeSuperuserEndpoints(state);
 
@@ -126,6 +116,6 @@ app.get("/data", async (req: Request, res: Response) => {
   console.log("Connected to database!");
 
   app.listen(config.port, () => {
-    console.log(`⚡️[server]: Server is running at https://localhost:${config.port}`);
+    console.log(`⚡️[server]: Server is running at http://localhost:${config.port}`);
   });
 })();

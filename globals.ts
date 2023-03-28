@@ -1,6 +1,9 @@
-import { Express, RequestHandler } from "express";
+import { Express } from "express";
 import dotenv from "dotenv";
 import { Collection, Document } from "mongodb";
+
+import { MongoHandle } from "./handles";
+import { MongoImage } from "./images";
 
 export class Config {
   // The port number on which the server will listen.
@@ -52,15 +55,21 @@ export class Config {
 export class State {
   config: Config;
   app: Express;
-  requireAuth: RequestHandler;
   scenes: Collection<Document>;
-  images: Collection<Document>;
+  images: Collection<MongoImage>;
+  handles: Collection<MongoHandle>;
 
-  constructor(config: Config, app: Express, requireAuth: RequestHandler, scenes: Collection<Document>, images: Collection<Document>) {
+  constructor(
+    config: Config,
+    app: Express,
+    scenes: Collection<Document>,
+    images: Collection<MongoImage>,
+    handles: Collection<MongoHandle>,
+  ) {
     this.config = config;
     this.app = app;
-    this.requireAuth = requireAuth;
     this.scenes = scenes;
     this.images = images;
+    this.handles = handles;
   }
 }
