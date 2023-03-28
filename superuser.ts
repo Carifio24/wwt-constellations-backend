@@ -53,16 +53,16 @@ export function initializeSuperuserEndpoints(state: State) {
   // Superuser for now: creating a new handle.
 
   const HandleCreation = t.type({
-    handle: t.string,
     display_name: t.string,
   });
 
   type HandleCreationT = t.TypeOf<typeof HandleCreation>;
 
   state.app.post(
-    "/handles/create",
+    "/handles/:handle",
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
+      const handle = req.params.handle;
       const maybe = HandleCreation.decode(req.body);
 
       if (isLeft(maybe)) {
@@ -74,7 +74,7 @@ export function initializeSuperuserEndpoints(state: State) {
       const input: HandleCreationT = maybe.right;
 
       const new_rec = {
-        handle: input.handle,
+        handle: handle,
         display_name: input.display_name,
         creation_date: new Date(),
         owner_accounts: [],
@@ -104,16 +104,16 @@ export function initializeSuperuserEndpoints(state: State) {
   // Superuser for now: adding an owner on a handle.
 
   const HandleOwnerAdd = t.type({
-    handle: t.string,
     account_id: t.string,
   });
 
   type HandleOwnerAddT = t.TypeOf<typeof HandleOwnerAdd>;
 
   state.app.post(
-    "/handles/add-owner",
+    "/handles/:handle/add-owner",
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
+      const handle = req.params.handle;
       const maybe = HandleOwnerAdd.decode(req.body);
 
       if (isLeft(maybe)) {
@@ -126,7 +126,7 @@ export function initializeSuperuserEndpoints(state: State) {
 
       try {
         state.handles.findOneAndUpdate(
-          { "handle": input.handle },
+          { "handle": handle },
           { $addToSet: { "owner_accounts": input.account_id } },
           { returnDocument: "after" }
         ).then((_result) => {
