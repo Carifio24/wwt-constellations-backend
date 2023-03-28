@@ -6,11 +6,10 @@
 //
 // See `SCHEMA.md` for more information about the schema used here.
 
-//import { Request, Response } from "express";
-//import { Request as JwtRequest } from "express-jwt";
+import { Response } from "express";
+import { Request as JwtRequest } from "express-jwt";
 
-//import { State } from "./globals";
-//import { noAuthErrorHandler } from "./auth";
+import { State } from "./globals";
 
 export interface MongoHandle {
   handle: string;
@@ -19,4 +18,30 @@ export interface MongoHandle {
   owner_accounts: string[];
 }
 
-//export function initializeHandleEndpoints(state: State) { }
+//function isOwner(req: JwtRequest, handle: MongoHandle): boolean {
+//  return req.auth && req.auth.sub && handle.owner_accounts.includes(req.auth.sub) || false;
+//}
+
+export function initializeHandleEndpoints(state: State) {
+  // Get general information about a handle
+
+  state.app.get("/handles/:handle", async (req: JwtRequest, res: Response) => {
+    try {
+      const result = await state.handles.findOne({ "handle": req.params.handle });
+
+      if (result === null) {
+        res.statusCode = 404;
+        res.json({ error: true, message: "Not found" });
+        return;
+      }
+
+      res.json({
+        handle: result.handle,
+        display_name: result.display_name,
+      });
+    } catch (err) {
+      res.statusCode = 500;
+      res.json({ error: true, message: `Database error in ${req.path}` });
+    }
+  });
+}

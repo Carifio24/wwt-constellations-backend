@@ -7,7 +7,7 @@ import { create } from "xmlbuilder2";
 
 import { Config, State } from "./globals";
 import { makeCheckAuthMiddleware } from "./auth";
-import { MongoHandle } from "./handles";
+import { initializeHandleEndpoints, MongoHandle } from "./handles";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { initializeSceneEndpoints } from "./scenes";
 import { initializeSuperuserEndpoints } from "./superuser";
@@ -43,6 +43,7 @@ state.app.get("/", (_req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
 
+initializeHandleEndpoints(state);
 initializeSceneEndpoints(state);
 initializeSuperuserEndpoints(state);
 
@@ -113,6 +114,6 @@ app.get("/data", async (req: Request, res: Response) => {
   console.log("Connected to database!");
 
   app.listen(config.port, () => {
-    console.log(`⚡️[server]: Server is running at https://localhost:${config.port}`);
+    console.log(`⚡️[server]: Server is running at http://localhost:${config.port}`);
   });
 })();
