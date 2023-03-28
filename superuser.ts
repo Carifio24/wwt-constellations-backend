@@ -17,6 +17,8 @@ export function initializeSuperuserEndpoints(state: State) {
     return req.auth && req.auth.sub === state.config.superuserAccountId;
   };
 
+  // GET /misc/amisuperuser
+  //
   // This endpoint only exists to potentially assist the frontend in determining
   // whether to show UI related to superuser activities. Since one can invoke
   // the superuser backend APIs directly, this is purely superficial
@@ -40,7 +42,7 @@ export function initializeSuperuserEndpoints(state: State) {
     }
   }
 
-  // Set up some configuration of our backing database.
+  // POST /misc/config-database - Set up some configuration of our backing database.
   state.app.post(
     "/misc/config-database",
     requireSuperuser,
@@ -50,7 +52,7 @@ export function initializeSuperuserEndpoints(state: State) {
     }
   );
 
-  // Superuser for now: creating a new handle.
+  // POST /handles/:handle - Superuser for now: creating a new handle.
 
   const HandleCreation = t.type({
     display_name: t.string,
@@ -92,16 +94,16 @@ export function initializeSuperuserEndpoints(state: State) {
           id: "" + result.insertedId
         });
       } catch (err) {
-        console.error("/handles/create exception:", err);
+        console.error("POST /handles/:handle exception:", err);
         // We'll call this a 400, not a 500, since this particular error is
         // likely a duplicate handle name.
         res.statusCode = 400;
-        res.json({ error: true, message: "Database error creating new handle" });
+        res.json({ error: true, message: "Database error in POST /handles/:handle" });
       }
     }
   );
 
-  // Superuser for now: adding an owner on a handle.
+  // POST /handles/:handle/add-owner - Superuser for now: adding an owner on a handle.
 
   const HandleOwnerAdd = t.type({
     account_id: t.string,
@@ -133,9 +135,9 @@ export function initializeSuperuserEndpoints(state: State) {
           res.json({ error: false });
         });
       } catch (err) {
-        console.error("/handles/add-owner exception:", err);
+        console.error("POST /handles/:handle/add-owner exception:", err);
         res.statusCode = 500;
-        res.json({ error: true, message: "Database error in /handles/add-owner" });
+        res.json({ error: true, message: "Database error in POST /handles/:handle/add-owner" });
       }
     }
   );

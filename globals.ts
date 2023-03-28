@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { Collection, Document } from "mongodb";
 
 import { MongoHandle } from "./handles";
+import { MongoImage } from "./images";
 
 export class Config {
   // The port number on which the server will listen.
@@ -55,14 +56,14 @@ export class State {
   config: Config;
   app: Express;
   scenes: Collection<Document>;
-  images: Collection<Document>;
+  images: Collection<MongoImage>;
   handles: Collection<MongoHandle>;
 
   constructor(
     config: Config,
     app: Express,
     scenes: Collection<Document>,
-    images: Collection<Document>,
+    images: Collection<MongoImage>,
     handles: Collection<MongoHandle>,
   ) {
     this.config = config;

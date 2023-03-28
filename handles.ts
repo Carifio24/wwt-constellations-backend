@@ -18,12 +18,17 @@ export interface MongoHandle {
   owner_accounts: string[];
 }
 
-//function isOwner(req: JwtRequest, handle: MongoHandle): boolean {
-//  return req.auth && req.auth.sub && handle.owner_accounts.includes(req.auth.sub) || false;
-//}
+function isOwner(req: JwtRequest, handle: MongoHandle): boolean {
+  return req.auth && req.auth.sub && handle.owner_accounts.includes(req.auth.sub) || false;
+}
+
+export function canAddImages(req: JwtRequest, handle: MongoHandle): boolean {
+  // One day we might have finer-grained permissions, but not yet.
+  return isOwner(req, handle);
+}
 
 export function initializeHandleEndpoints(state: State) {
-  // Get general information about a handle
+  // GET /handles/:handle - Get general information about a handle
 
   state.app.get("/handles/:handle", async (req: JwtRequest, res: Response) => {
     try {
