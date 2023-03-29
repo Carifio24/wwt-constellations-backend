@@ -28,9 +28,9 @@ export function canAddImages(req: JwtRequest, handle: MongoHandle): boolean {
 }
 
 export function initializeHandleEndpoints(state: State) {
-  // GET /handles/:handle - Get general information about a handle
+  // GET /handle/:handle - Get general information about a handle
 
-  state.app.get("/handles/:handle", async (req: JwtRequest, res: Response) => {
+  state.app.get("/handle/:handle", async (req: JwtRequest, res: Response) => {
     try {
       const result = await state.handles.findOne({ "handle": req.params.handle });
 

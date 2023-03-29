@@ -8,6 +8,7 @@
 import { NextFunction, Response, RequestHandler } from "express";
 import { Request as JwtRequest } from "express-jwt";
 import * as t from "io-ts";
+import { PathReporter } from "io-ts/PathReporter";
 import { isLeft } from "fp-ts/Either";
 
 import { State } from "./globals";
@@ -52,7 +53,7 @@ export function initializeSuperuserEndpoints(state: State) {
     }
   );
 
-  // POST /handles/:handle - Superuser for now: creating a new handle.
+  // POST /handle/:handle - Superuser for now: creating a new handle.
 
   const HandleCreation = t.type({
     display_name: t.string,
@@ -61,19 +62,27 @@ export function initializeSuperuserEndpoints(state: State) {
   type HandleCreationT = t.TypeOf<typeof HandleCreation>;
 
   state.app.post(
-    "/handles/:handle",
+    "/handle/:handle",
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const handle = req.params.handle;
+
+      // Validate inputs.
+      //
+      // Todo: when public, validate that the handle text meets requirements
+      // (no spaces, etc.)
+
       const maybe = HandleCreation.decode(req.body);
 
       if (isLeft(maybe)) {
         res.statusCode = 400;
-        res.json({ error: true, message: "Submission did not match schema" });
+        res.json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
         return;
       }
 
       const input: HandleCreationT = maybe.right;
+
+      // OK to proceed.
 
       const new_rec = {
         handle: handle,
@@ -82,7 +91,7 @@ export function initializeSuperuserEndpoints(state: State) {
         owner_accounts: [],
       };
 
-      // From my understand of the Express docs, exceptions in await expressions
+      // From my understanding of the Express docs, exceptions in await expressions
       // shouldn't crash the server, but a duplicate submission here does just
       // that.
 
@@ -94,16 +103,16 @@ export function initializeSuperuserEndpoints(state: State) {
           id: "" + result.insertedId
         });
       } catch (err) {
-        console.error("POST /handles/:handle exception:", err);
+        console.error("POST /handle/:handle exception:", err);
         // We'll call this a 400, not a 500, since this particular error is
         // likely a duplicate handle name.
         res.statusCode = 400;
-        res.json({ error: true, message: "Database error in POST /handles/:handle" });
+        res.json({ error: true, message: "Database error in POST /handle/:handle" });
       }
     }
   );
 
-  // POST /handles/:handle/add-owner - Superuser for now: adding an owner on a handle.
+  // POST /handle/:handle/add-owner - Superuser for now: adding an owner on a handle.
 
   const HandleOwnerAdd = t.type({
     account_id: t.string,
@@ -112,7 +121,7 @@ export function initializeSuperuserEndpoints(state: State) {
   type HandleOwnerAddT = t.TypeOf<typeof HandleOwnerAdd>;
 
   state.app.post(
-    "/handles/:handle/add-owner",
+    "/handle/:handle/add-owner",
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const handle = req.params.handle;
@@ -120,7 +129,7 @@ export function initializeSuperuserEndpoints(state: State) {
 
       if (isLeft(maybe)) {
         res.statusCode = 400;
-        res.json({ error: true, message: "Submission did not match schema" });
+        res.json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
         return;
       }
 
@@ -135,9 +144,9 @@ export function initializeSuperuserEndpoints(state: State) {
           res.json({ error: false });
         });
       } catch (err) {
-        console.error("POST /handles/:handle/add-owner exception:", err);
+        console.error("POST /handle/:handle/add-owner exception:", err);
         res.statusCode = 500;
-        res.json({ error: true, message: "Database error in POST /handles/:handle/add-owner" });
+        res.json({ error: true, message: "Database error in POST /handle/:handle/add-owner" });
       }
     }
   );

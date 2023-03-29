@@ -93,7 +93,7 @@ def main():
         )
 
         resp = client.send_request(
-            f"{API_URL}/handles/{handle}/image",
+            f"{API_URL}/handle/{handle}/image",
             scopes=SCOPES,
             new_token=True,
             json=submission,

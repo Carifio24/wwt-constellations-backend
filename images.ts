@@ -10,7 +10,8 @@ import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
-import { ObjectId } from "mongodb";
+import { PathReporter } from "io-ts/PathReporter";
+import { ObjectId, WithId } from "mongodb";
 
 import { State } from "./globals";
 import { canAddImages } from "./handles";
@@ -50,7 +51,7 @@ const ImageStorage = t.type({
 type ImageStorageT = t.TypeOf<typeof ImageStorage>;
 
 export function initializeImageEndpoints(state: State) {
-  // POST /handles/:handle/image: post a new image record (data have already
+  // POST /handle/:handle/image: post a new image record (data have already
   // been processed and uploaded)
 
   const ImageCreation = t.type({
@@ -62,7 +63,7 @@ export function initializeImageEndpoints(state: State) {
   type ImageCreationT = t.TypeOf<typeof ImageCreation>;
 
   state.app.post(
-    "/handles/:handle/image",
+    "/handle/:handle/image",
     async (req: JwtRequest, res: Response) => {
       const handle_name = req.params.handle;
 
@@ -88,7 +89,7 @@ export function initializeImageEndpoints(state: State) {
 
       if (isLeft(maybe)) {
         res.statusCode = 400;
-        res.json({ error: true, message: "Submission did not match schema" });
+        res.json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
         return;
       }
 
@@ -110,12 +111,12 @@ export function initializeImageEndpoints(state: State) {
         res.json({
           error: false,
           id: "" + result.insertedId,
-          rel_url: "/images/" + encodeURIComponent("" + result.insertedId),
+          rel_url: "/image/" + encodeURIComponent("" + result.insertedId),
         });
       } catch (err) {
-        console.error("POST /handles/:handle/image exception:", err);
+        console.error("POST /handle/:handle/image exception:", err);
         res.statusCode = 500;
-        res.json({ error: true, message: "Database error in POST /handles/:handle/image" });
+        res.json({ error: true, message: "Database error in POST /handle/:handle/image" });
       }
     }
   );
