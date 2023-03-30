@@ -11,7 +11,9 @@ import { Request as JwtRequest } from "express-jwt";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
-import { ObjectId, WithId } from "mongodb";
+import { ObjectId } from "mongodb";
+import { create } from "xmlbuilder2";
+import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { State } from "./globals";
 import { canAddImages } from "./handles";
@@ -51,6 +53,48 @@ const ImageStorage = t.type({
 });
 
 type ImageStorageT = t.TypeOf<typeof ImageStorage>;
+
+export function imageToImageset(image: MongoImage, root: XMLBuilder): XMLBuilder {
+  const iset = root.ele("ImageSet");
+
+  // Bad hardcodings!!
+  iset.att("BandPass", "Visible");
+  iset.att("DataSetType", "Sky");
+
+  // Hardcodings that are probably OK:
+  iset.att("BaseTileLevel", "0");
+  iset.att("ElevationModel", "False");
+  iset.att("Generic", "False");
+  iset.att("Sparse", "True");
+  iset.att("StockSet", "False");
+
+  iset.att("BaseDegreesPerTile", String(image.wwt.base_degrees_per_tile));
+  iset.att("BottomsUp", image.wwt.bottoms_up ? "True" : "False");
+  iset.att("CenterX", String(image.wwt.center_x));
+  iset.att("CenterY", String(image.wwt.center_y));
+  iset.att("FileType", image.wwt.file_type);
+  iset.att("Name", image.note);
+  iset.att("OffsetX", String(image.wwt.offset_x));
+  iset.att("OffsetY", String(image.wwt.offset_y));
+  iset.att("Projection", image.wwt.projection);
+  iset.att("QuadTreeMap", image.wwt.quad_tree_map);
+  iset.att("Rotation", String(image.wwt.rotation));
+  iset.att("TileLevels", String(image.wwt.tile_levels));
+  iset.att("WidthFactor", String(image.wwt.width_factor));
+
+  if (image.storage.legacy_url_template) {
+    iset.att("Url", image.storage.legacy_url_template);
+  } else {
+    throw new Error("no derivable URL for imageset WTML");
+  }
+
+  // TODO: credits etc!!!
+
+  iset.ele("Description").txt(image.note);
+  iset.ele("ThumbnailUrl").txt(image.wwt.thumbnail_url);
+
+  return iset;
+}
 
 export function initializeImageEndpoints(state: State) {
   // POST /handle/:handle/image: post a new image record (data have already
@@ -174,6 +218,39 @@ export function initializeImageEndpoints(state: State) {
         console.error("POST /images/find-by-legacy-url exception:", err);
         res.statusCode = 500;
         res.json({ error: true, message: "Database error in POST /images/find-by-legacy-url" });
+      }
+    }
+  );
+
+  // GET /image/:id/img.wtml - get WTML with a single imageset
+
+  state.app.get(
+    "/image/:id/img.wtml",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const image = await state.images.findOne({ "_id": new ObjectId(req.params.id) });
+
+        if (image === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        const root = create().ele("Folder");
+        root.att("Browseable", "True");
+        root.att("Group", "Explorer");
+        root.att("Name", image.note);
+        root.att("Searchable", "True");
+        root.att("Type", "Sky");
+
+        imageToImageset(image, root);
+
+        root.end({ prettyPrint: true });
+        res.type("application/xml")
+        res.send(root.toString());
+      } catch (err) {
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.path}` });
       }
     }
   );
