@@ -121,7 +121,7 @@ export function initializeImageEndpoints(state: State) {
     }
   );
 
-  // GET /images/find-by-legacy-url - locate image records based on their WWT
+  // POST /images/find-by-legacy-url - locate image records based on their WWT
   // "legacy URL" field.
   //
   // This helps us bootstrap the collection by allowing us to associate existing
@@ -169,9 +169,9 @@ export function initializeImageEndpoints(state: State) {
           results: items,
         });
       } catch (err) {
-        console.error("GET /images/find-by-legacy-url exception:", err);
+        console.error("POST /images/find-by-legacy-url exception:", err);
         res.statusCode = 500;
-        res.json({ error: true, message: "Database error in GET /images/find-by-legacy-url" });
+        res.json({ error: true, message: "Database error in POST /images/find-by-legacy-url" });
       }
     }
   );
