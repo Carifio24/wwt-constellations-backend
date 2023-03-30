@@ -124,8 +124,8 @@ export function initializeImageEndpoints(state: State) {
       }
 
       if (!canAddImages(req, handle)) {
-        res.statusCode = 401;
-        res.json({ error: true, message: "Not authorized" });
+        res.statusCode = 403;
+        res.json({ error: true, message: "Forbidden" });
         return;
       }
 

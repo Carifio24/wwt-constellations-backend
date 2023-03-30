@@ -33,9 +33,9 @@ export function initializeSuperuserEndpoints(state: State) {
   // A middleware to require that the request comes from the superuser account.
   const requireSuperuser: RequestHandler = (req: JwtRequest, res: Response, next: NextFunction) => {
     if (!amISuperuser(req)) {
-      res.status(401).json({
+      res.status(403).json({
         error: true,
-        message: "Not authorized"
+        message: "Forbidden"
       });
     } else {
       console.warn("executing superuser API call:", req.path);
