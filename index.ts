@@ -7,8 +7,8 @@ import { create } from "xmlbuilder2";
 
 import { Config, State } from "./globals";
 import { makeCheckAuthMiddleware } from "./auth";
-import { initializeHandleEndpoints, MongoHandle } from "./handles";
-import { initializeImageEndpoints, MongoImage } from "./images";
+import { initializeHandleEndpoints } from "./handles";
+import { initializeImageEndpoints } from "./images";
 import { parseXmlFromUrl, snakeToPascal } from "./util";
 import { initializeSceneEndpoints } from "./scenes";
 import { initializeSuperuserEndpoints } from "./superuser";
@@ -36,8 +36,8 @@ const state = new State(
   config,
   app,
   database.collection("scenes"),
-  database.collection<MongoImage>("images"),
-  database.collection<MongoHandle>("handles"),
+  database.collection("images"),
+  database.collection("handles"),
 );
 
 state.app.get("/", (_req: Request, res: Response) => {

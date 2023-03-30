@@ -148,4 +148,51 @@ export function initializeSceneEndpoints(state: State) {
       }
     }
   );
+
+  // GET /scene/:id - Get general information about a scene
+
+  state.app.get("/scene/:id", async (req: JwtRequest, res: Response) => {
+    try {
+      const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+
+      if (scene === null) {
+        res.statusCode = 404;
+        res.json({ error: true, message: "Not found" });
+        return;
+      }
+
+      const handle = await state.handles.findOne({ "_id": scene.handle_id });
+
+      if (handle === null) {
+        console.error(`Database consistency failure, scene ${scene._id} missing handle ${scene.handle_id}`);
+        res.statusCode = 500;
+        res.json({ error: true, message: "Database consistency failure" });
+        return;
+      }
+
+      const output: Record<string, any> = {
+        error: false,
+        id: scene._id,
+        handle_id: scene.handle_id,
+        handle: {
+          handle: handle.handle,
+          display_name: handle.display_name,
+        },
+        creation_date: scene.creation_date,
+        likes: scene.likes,
+        place: scene.place,
+        text: scene.text,
+      };
+
+      if (scene.outgoing_url) {
+        output.outgoing_url = scene.outgoing_url;
+      }
+
+      res.json(output);
+    } catch (err) {
+      console.error(`Database error in ${req.path}:`, err);
+      res.statusCode = 500;
+      res.json({ error: true, message: `Database error in ${req.path}` });
+    }
+  });
 }
