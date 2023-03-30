@@ -7,39 +7,18 @@ MongoDB.
 
 import sys
 
-from openidc_client import OpenIDCClient
+from wwt_api_client import constellations as cx
 from wwt_data_formats import enums
 from wwt_data_formats.folder import Folder
 from wwt_data_formats.imageset import ImageSet
 
-APP_IDENTIFIER = "wwt_cx_tool"
-MODE = "localhost"
-ID_PROVIDER_MAPPING = {
-    "Authorization": "/protocol/openid-connect/auth",
-    "Token": "/protocol/openid-connect/token",
-}
-SCOPES = ["profile"]
-
-if MODE == "dev":
-    ID_PROVIDER = "https://wwtelescope.dev/auth/realms/constellations"
-    CLIENT_ID = "cli-tool"
-    API_URL = "https://api.wwtelescope.dev"
-elif MODE == "localhost":
-    ID_PROVIDER = "http://localhost:8080/realms/constellations"
-    CLIENT_ID = "cli-tool"
-    API_URL = "http://localhost:7000"
-
 
 def main():
-    client = OpenIDCClient(
-        APP_IDENTIFIER,
-        ID_PROVIDER,
-        ID_PROVIDER_MAPPING,
-        CLIENT_ID,
-    )
+    client = cx.CxClient()
 
     handle = sys.argv[1]
     f = Folder.from_file(sys.argv[2])
+    hc = client.handle_client(handle)
 
     for item in f.children:
         if not isinstance(item, ImageSet):
@@ -74,32 +53,7 @@ def main():
                 f"warning: item `{item.name}` has non-default stock_set setting `{item.stock_set}`"
             )
 
-        submission = dict(
-            wwt=dict(
-                base_degrees_per_tile=item.base_degrees_per_tile,
-                bottoms_up=item.bottoms_up,
-                center_x=item.center_x,
-                center_y=item.center_y,
-                file_type=item.file_type,
-                projection=item.projection.value,
-                quad_tree_map=item.quad_tree_map or "",
-                rotation=item.rotation_deg,
-                tile_levels=item.tile_levels,
-                width_factor=item.width_factor,
-                thumbnail_url=item.thumbnail_url,
-            ),
-            storage=dict(legacy_url_template=item.url),
-            note=item.name,
-        )
-
-        resp = client.send_request(
-            f"{API_URL}/handle/{handle}/image",
-            scopes=SCOPES,
-            new_token=True,
-            json=submission,
-        )
-        resp.raise_for_status()
-        print(resp.json())
+        print(hc.add_image_from_set(item))
 
 
 if __name__ == "__main__":
