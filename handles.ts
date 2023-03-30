@@ -45,6 +45,7 @@ export function initializeHandleEndpoints(state: State) {
       }
 
       res.json({
+        error: false,
         handle: result.handle,
         display_name: result.display_name,
       });
