@@ -14,10 +14,16 @@ import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
 import { ObjectId } from "mongodb";
+import { create } from "xmlbuilder2";
+import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { State } from "./globals";
 import { canAddScenes } from "./handles";
+import { imageToImageset } from "./images";
 import { IoObjectId, UnitInterval } from "./util";
+
+const R2D = 180.0 / Math.PI;
+const R2H = 12.0 / Math.PI;
 
 export interface MongoScene {
   handle_id: ObjectId;
@@ -50,6 +56,49 @@ const SceneContent = t.type({
 });
 
 type SceneContentT = t.TypeOf<typeof SceneContent>;
+
+
+// Turn a Scene into a basic WWT place, if possible.
+//
+// "Possible" means that its content is a single imageset layer.
+//
+// This function is async since we need to pull the imageset info from the
+// database.
+export async function sceneToPlace(scene: MongoScene, desc: string, root: XMLBuilder, state: State): Promise<XMLBuilder> {
+  const pl = root.ele("Place");
+
+  // Bad hardcodings!!
+  pl.att("DataSetType", "Sky");
+
+  // Hardcodings that are probably OK:
+  pl.att("Angle", "0");
+  pl.att("AngularSize", "0");
+  pl.att("Magnitude", "0");
+  pl.att("Opacity", "100");
+
+  // Actual settings
+  pl.att("Dec", String(scene.place.dec_rad * R2D));
+  pl.att("Name", desc);
+  pl.att("RA", String(scene.place.ra_rad * R2H));
+  pl.att("Rotation", String(scene.place.roll_rad * R2D));
+  pl.att("ZoomLevel", String(scene.place.zoom_deg));
+
+  // TODO: "Constellation" attr ? "Thumbnail" ?
+
+  if (scene.content.image_layers && scene.content.image_layers.length == 1) {
+    const fg = pl.ele("ForegroundImageSet");
+
+    const image = await state.images.findOne({ "_id": new ObjectId(scene.content.image_layers[0].image_id) });
+
+    if (image === null) {
+      throw new Error(`database consistency failure: no image ${scene.content.image_layers[0].image_id}`);
+    }
+
+    imageToImageset(image, fg);
+  }
+
+  return pl;
+}
 
 export function initializeSceneEndpoints(state: State) {
   // POST /handle/:handle/scene: create a new scene record
@@ -195,4 +244,45 @@ export function initializeSceneEndpoints(state: State) {
       res.json({ error: true, message: `Database error in ${req.path}` });
     }
   });
+
+  // GET /scene/:id/place.wtml - (try to) get WTML expressing this scene as a WWT Place.
+
+  state.app.get(
+    "/scene/:id/place.wtml",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+
+        if (scene === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        const desc = `Scene ${req.params.id}`;
+
+        const root = create().ele("Folder");
+        root.att("Browseable", "True");
+        root.att("Group", "Explorer");
+        root.att("Name", desc);
+        root.att("Searchable", "True");
+        root.att("Type", "Sky");
+
+        try {
+          await sceneToPlace(scene, desc, root, state);
+        } catch (err) {
+          // I think a 404 is the most appropriate response here? Not sure.
+          res.statusCode = 404;
+          res.json({ error: true, message: `scene ${req.params.id} cannot be represented as a WWT Place` });
+        }
+
+        root.end({ prettyPrint: true });
+        res.type("application/xml")
+        res.send(root.toString());
+      } catch (err) {
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.path}` });
+      }
+    }
+  );
 }
