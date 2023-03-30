@@ -121,4 +121,58 @@ export function initializeImageEndpoints(state: State) {
     }
   );
 
+  // GET /images/find-by-legacy-url - locate image records based on their WWT
+  // "legacy URL" field.
+  //
+  // This helps us bootstrap the collection by allowing us to associate existing
+  // images with new scenes (~WWT places). It should probably eventually become
+  // part of a more generic query interface.
+  //
+  // We don't (yet?) filter results by handle or anything.
+
+  const FindByLegacy = t.type({
+    wwt_legacy_url: t.string,
+  });
+
+  type FindByLegacyT = t.TypeOf<typeof FindByLegacy>;
+
+  state.app.post(
+    "/images/find-by-legacy-url",
+    async (req: JwtRequest, res: Response) => {
+      // No authentication required.
+
+      // Does the input look valid?
+
+      const maybe = FindByLegacy.decode(req.body);
+
+      if (isLeft(maybe)) {
+        res.statusCode = 400;
+        res.json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
+        return;
+      }
+
+      const input: FindByLegacyT = maybe.right;
+
+      // OK, looks good.
+
+      try {
+        // Don't include the WWT astrometric/data-format info, which is more
+        // specific than callers will generally want.
+        const items = await state.images.find(
+          { "storage.legacy_url_template": { $eq: input.wwt_legacy_url } },
+        ).project(
+          { "wwt": false }
+        ).toArray();
+
+        res.json({
+          error: false,
+          results: items,
+        });
+      } catch (err) {
+        console.error("GET /images/find-by-legacy-url exception:", err);
+        res.statusCode = 500;
+        res.json({ error: true, message: "Database error in GET /images/find-by-legacy-url" });
+      }
+    }
+  );
 }
