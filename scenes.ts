@@ -210,6 +210,8 @@ export function initializeSceneEndpoints(state: State) {
         return;
       }
 
+      // Build up the main part of the response.
+
       const handle = await state.handles.findOne({ "_id": scene.handle_id });
 
       if (handle === null) {
@@ -236,6 +238,37 @@ export function initializeSceneEndpoints(state: State) {
       if (scene.outgoing_url) {
         output.outgoing_url = scene.outgoing_url;
       }
+
+      // ~"Hydrate" the content
+
+      if (scene.content.image_layers) {
+        const image_layers = [];
+
+        for (var layer_desc of scene.content.image_layers) {
+          const image = await state.images.findOne({ "_id": new ObjectId(layer_desc.image_id) });
+
+          if (image === null) {
+            console.error(`Database consistency failure, scene ${scene._id} missing image ${layer_desc.image_id}`);
+            res.statusCode = 500;
+            res.json({ error: true, message: "Database consistency failure" });
+            return;
+          }
+
+          const image_info = {
+            wwt: image.wwt,
+            storage: image.storage,
+          };
+
+          image_layers.push({
+            image: image_info,
+            opacity: layer_desc.opacity,
+          });
+        }
+
+        output.content = { image_layers: image_layers };
+      }
+
+      // All done!
 
       res.json(output);
     } catch (err) {
