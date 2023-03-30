@@ -37,9 +37,9 @@ const ImageWwt = t.type({
   projection: t.string,
   quad_tree_map: t.string,
   rotation: t.number,
+  thumbnail_url: t.string,
   tile_levels: t.number,
   width_factor: t.number,
-  thumbnail_url: t.string,
 });
 
 type ImageWwtT = t.TypeOf<typeof ImageWwt>;

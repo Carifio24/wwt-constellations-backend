@@ -27,6 +27,10 @@ export function canAddImages(req: JwtRequest, handle: MongoHandle): boolean {
   return isOwner(req, handle);
 }
 
+export function canAddScenes(req: JwtRequest, handle: MongoHandle): boolean {
+  return isOwner(req, handle);
+}
+
 export function initializeHandleEndpoints(state: State) {
   // GET /handle/:handle - Get general information about a handle
 
