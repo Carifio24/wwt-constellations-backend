@@ -34,6 +34,8 @@ const ImageWwt = t.type({
   center_x: t.number,
   center_y: t.number,
   file_type: t.string,
+  offset_x: t.number,
+  offset_y: t.number,
   projection: t.string,
   quad_tree_map: t.string,
   rotation: t.number,

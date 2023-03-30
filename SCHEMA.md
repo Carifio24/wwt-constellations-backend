@@ -37,6 +37,8 @@ Each document in the `images` collection may have the following fields:
   - `center_x` (float)
   - `center_y` (float)
   - `file_type` (string)
+  - `offset_x` (float)
+  - `offset_y` (float)
   - `projection` (string)
   - `quad_tree_map` (string)
   - `rotation` (number)
