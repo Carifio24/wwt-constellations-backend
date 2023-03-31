@@ -103,11 +103,11 @@ export function initializeSuperuserEndpoints(state: State) {
           id: "" + result.insertedId
         });
       } catch (err) {
-        console.error("POST /handle/:handle exception:", err);
+        console.error(`${req.method} ${req.path} exception:`, err);
         // We'll call this a 400, not a 500, since this particular error is
         // likely a duplicate handle name.
         res.statusCode = 400;
-        res.json({ error: true, message: "Database error in POST /handle/:handle" });
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
     }
   );
@@ -144,9 +144,9 @@ export function initializeSuperuserEndpoints(state: State) {
           res.json({ error: false });
         });
       } catch (err) {
-        console.error("POST /handle/:handle/add-owner exception:", err);
+        console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
-        res.json({ error: true, message: "Database error in POST /handle/:handle/add-owner" });
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
     }
   );

@@ -248,9 +248,9 @@ export function initializeSceneEndpoints(state: State) {
           rel_url: "/scene/" + encodeURIComponent("" + result.insertedId),
         });
       } catch (err) {
-        console.error("POST /handle/:handle/scene exception:", err);
+        console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
-        res.json({ error: true, message: "Database error in POST /handle/:handle/scene" });
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
     }
   );
@@ -271,9 +271,9 @@ export function initializeSceneEndpoints(state: State) {
       output["error"] = false;
       res.json(output);
     } catch (err) {
-      console.error(`Database error in ${req.path}:`, err);
+      console.error(`${req.method} ${req.path} exception:`, err);
       res.statusCode = 500;
-      res.json({ error: true, message: `Database error in ${req.path}` });
+      res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
     }
   });
 
@@ -312,8 +312,9 @@ export function initializeSceneEndpoints(state: State) {
         res.type("application/xml")
         res.send(root.toString());
       } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
-        res.json({ error: true, message: `error serving ${req.path}` });
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
     }
   );
@@ -360,8 +361,9 @@ export function initializeSceneEndpoints(state: State) {
           results: scenes,
         });
       } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
-        res.json({ error: true, message: `error serving ${req.path}` });
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
     }
   );
