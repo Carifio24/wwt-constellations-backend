@@ -10,6 +10,7 @@ import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
 
 import { State } from "./globals";
+import { sceneToJson } from "./scenes";
 
 export interface MongoHandle {
   handle: string;
@@ -54,4 +55,62 @@ export function initializeHandleEndpoints(state: State) {
       res.json({ error: true, message: `Database error in ${req.path}` });
     }
   });
+
+  // GET /handle/:handle/timeline?page=$int - get scenes for a handle's timeline
+  //
+  // This gives the scenes published by a handle in reverse chronological order.
+
+  const page_size = 8;
+
+  state.app.get(
+    "/handle/:handle/timeline",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        // Handle parameters
+
+        var page_num = 0;
+
+        try {
+          const qpage = parseInt(req.query.page as string, 10);
+
+          if (qpage >= 0) {
+            page_num = qpage;
+          }
+        } catch {
+          res.statusCode = 400;
+          res.json({ error: true, message: `invalid page number` });
+        }
+
+        const handle = await state.handles.findOne({ "handle": req.params.handle });
+
+        if (handle === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        // Now, the actual query
+
+        const docs = await state.scenes
+          .find({ "handle_id": { "$eq": handle._id } })
+          .sort({ creation_date: -1 }) // todo: publish date; published vs. unpublished
+          .skip(page_num * page_size)
+          .limit(page_size)
+          .toArray();
+        const scenes = [];
+
+        for (var doc of docs) {
+          scenes.push(await sceneToJson(doc, state));
+        }
+
+        res.json({
+          error: false,
+          results: scenes,
+        });
+      } catch (err) {
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.path}` });
+      }
+    }
+  );
 }
