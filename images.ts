@@ -160,9 +160,9 @@ export function initializeImageEndpoints(state: State) {
           rel_url: "/image/" + encodeURIComponent("" + result.insertedId),
         });
       } catch (err) {
-        console.error("POST /handle/:handle/image exception:", err);
+        console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
-        res.json({ error: true, message: "Database error in POST /handle/:handle/image" });
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
     }
   );
@@ -215,9 +215,9 @@ export function initializeImageEndpoints(state: State) {
           results: items,
         });
       } catch (err) {
-        console.error("POST /images/find-by-legacy-url exception:", err);
+        console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
-        res.json({ error: true, message: "Database error in POST /images/find-by-legacy-url" });
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
     }
   );
@@ -249,8 +249,9 @@ export function initializeImageEndpoints(state: State) {
         res.type("application/xml")
         res.send(root.toString());
       } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
-        res.json({ error: true, message: `error serving ${req.path}` });
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
     }
   );

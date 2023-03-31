@@ -51,8 +51,9 @@ export function initializeHandleEndpoints(state: State) {
         display_name: result.display_name,
       });
     } catch (err) {
+      console.error(`${req.method} ${req.path} exception:`, err);
       res.statusCode = 500;
-      res.json({ error: true, message: `Database error in ${req.path}` });
+      res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
     }
   });
 
@@ -108,8 +109,9 @@ export function initializeHandleEndpoints(state: State) {
           results: scenes,
         });
       } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
-        res.json({ error: true, message: `error serving ${req.path}` });
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
     }
   );
