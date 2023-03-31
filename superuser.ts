@@ -47,9 +47,15 @@ export function initializeSuperuserEndpoints(state: State) {
   state.app.post(
     "/misc/config-database",
     requireSuperuser,
-    async (_req: JwtRequest, res: Response) => {
-      await state.handles.createIndex({ "handle": 1 }, { unique: true });
-      res.json({ error: false });
+    async (req: JwtRequest, res: Response) => {
+      try {
+        await state.handles.createIndex({ "handle": 1 }, { unique: true });
+        res.json({ error: false });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
     }
   );
 
