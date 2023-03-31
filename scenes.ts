@@ -13,7 +13,7 @@ import { Request as JwtRequest } from "express-jwt";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
-import { ObjectId } from "mongodb";
+import { ObjectId, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
@@ -98,6 +98,64 @@ export async function sceneToPlace(scene: MongoScene, desc: string, root: XMLBui
   }
 
   return pl;
+}
+
+async function sceneToJson(scene: WithId<MongoScene>, state: State): Promise<Record<string, any>> {
+  // Build up the main part of the response.
+
+  const handle = await state.handles.findOne({ "_id": scene.handle_id });
+
+  if (handle === null) {
+    throw new Error(`Database consistency failure, scene ${scene._id} missing handle ${scene.handle_id}`);
+  }
+
+  const output: Record<string, any> = {
+    error: false,
+    id: scene._id,
+    handle_id: scene.handle_id,
+    handle: {
+      handle: handle.handle,
+      display_name: handle.display_name,
+    },
+    creation_date: scene.creation_date,
+    likes: scene.likes,
+    place: scene.place,
+    text: scene.text,
+  };
+
+  if (scene.outgoing_url) {
+    output.outgoing_url = scene.outgoing_url;
+  }
+
+  // ~"Hydrate" the content
+
+  if (scene.content.image_layers) {
+    const image_layers = [];
+
+    for (var layer_desc of scene.content.image_layers) {
+      const image = await state.images.findOne({ "_id": new ObjectId(layer_desc.image_id) });
+
+      if (image === null) {
+        throw new Error(`Database consistency failure, scene ${scene._id} missing image ${layer_desc.image_id}`);
+      }
+
+      const image_info = {
+        wwt: image.wwt,
+        storage: image.storage,
+      };
+
+      image_layers.push({
+        image: image_info,
+        opacity: layer_desc.opacity,
+      });
+    }
+
+    output.content = { image_layers: image_layers };
+  }
+
+  // All done!
+
+  return output;
 }
 
 export function initializeSceneEndpoints(state: State) {
@@ -210,66 +268,7 @@ export function initializeSceneEndpoints(state: State) {
         return;
       }
 
-      // Build up the main part of the response.
-
-      const handle = await state.handles.findOne({ "_id": scene.handle_id });
-
-      if (handle === null) {
-        console.error(`Database consistency failure, scene ${scene._id} missing handle ${scene.handle_id}`);
-        res.statusCode = 500;
-        res.json({ error: true, message: "Database consistency failure" });
-        return;
-      }
-
-      const output: Record<string, any> = {
-        error: false,
-        id: scene._id,
-        handle_id: scene.handle_id,
-        handle: {
-          handle: handle.handle,
-          display_name: handle.display_name,
-        },
-        creation_date: scene.creation_date,
-        likes: scene.likes,
-        place: scene.place,
-        text: scene.text,
-      };
-
-      if (scene.outgoing_url) {
-        output.outgoing_url = scene.outgoing_url;
-      }
-
-      // ~"Hydrate" the content
-
-      if (scene.content.image_layers) {
-        const image_layers = [];
-
-        for (var layer_desc of scene.content.image_layers) {
-          const image = await state.images.findOne({ "_id": new ObjectId(layer_desc.image_id) });
-
-          if (image === null) {
-            console.error(`Database consistency failure, scene ${scene._id} missing image ${layer_desc.image_id}`);
-            res.statusCode = 500;
-            res.json({ error: true, message: "Database consistency failure" });
-            return;
-          }
-
-          const image_info = {
-            wwt: image.wwt,
-            storage: image.storage,
-          };
-
-          image_layers.push({
-            image: image_info,
-            opacity: layer_desc.opacity,
-          });
-        }
-
-        output.content = { image_layers: image_layers };
-      }
-
-      // All done!
-
+      const output = await sceneToJson(scene, state);
       res.json(output);
     } catch (err) {
       console.error(`Database error in ${req.path}:`, err);
@@ -312,6 +311,54 @@ export function initializeSceneEndpoints(state: State) {
         root.end({ prettyPrint: true });
         res.type("application/xml")
         res.send(root.toString());
+      } catch (err) {
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.path}` });
+      }
+    }
+  );
+
+  // GET /scenes/home-timeline?page=$int - get scenes for the homepage timeline
+  //
+  // For now, there is a global timeline that is sorted on a nonsensical key
+  // (the `text`) for testing. We could add personalized timelines and/or apply
+  // a sort based on an intentional decision -- add a `timelineOrder` key and
+  // update it when we want.
+
+  const page_size = 8;
+
+  state.app.get(
+    "/scenes/home-timeline",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        var page_num = 0;
+
+        try {
+          const qpage = parseInt(req.query.page as string, 10);
+
+          if (qpage >= 0) {
+            page_num = qpage;
+          }
+        } catch {
+          res.statusCode = 400;
+          res.json({ error: true, message: `invalid page number` });
+        }
+
+        const docs = await state.scenes.find()
+          .sort({ text: 1 })
+          .skip(page_num * page_size)
+          .limit(page_size)
+          .toArray();
+        const scenes = [];
+
+        for (var doc of docs) {
+          scenes.push(await sceneToJson(doc, state));
+        }
+
+        res.json({
+          error: false,
+          results: scenes,
+        });
       } catch (err) {
         res.statusCode = 500;
         res.json({ error: true, message: `error serving ${req.path}` });
