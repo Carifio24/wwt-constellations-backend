@@ -100,7 +100,7 @@ export async function sceneToPlace(scene: MongoScene, desc: string, root: XMLBui
   return pl;
 }
 
-async function sceneToJson(scene: WithId<MongoScene>, state: State): Promise<Record<string, any>> {
+export async function sceneToJson(scene: WithId<MongoScene>, state: State): Promise<Record<string, any>> {
   // Build up the main part of the response.
 
   const handle = await state.handles.findOne({ "_id": scene.handle_id });
@@ -110,7 +110,6 @@ async function sceneToJson(scene: WithId<MongoScene>, state: State): Promise<Rec
   }
 
   const output: Record<string, any> = {
-    error: false,
     id: scene._id,
     handle_id: scene.handle_id,
     handle: {
@@ -269,6 +268,7 @@ export function initializeSceneEndpoints(state: State) {
       }
 
       const output = await sceneToJson(scene, state);
+      output["error"] = false;
       res.json(output);
     } catch (err) {
       console.error(`Database error in ${req.path}:`, err);
