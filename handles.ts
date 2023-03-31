@@ -27,10 +27,14 @@ export function canAddImages(req: JwtRequest, handle: MongoHandle): boolean {
   return isOwner(req, handle);
 }
 
-export function initializeHandleEndpoints(state: State) {
-  // GET /handles/:handle - Get general information about a handle
+export function canAddScenes(req: JwtRequest, handle: MongoHandle): boolean {
+  return isOwner(req, handle);
+}
 
-  state.app.get("/handles/:handle", async (req: JwtRequest, res: Response) => {
+export function initializeHandleEndpoints(state: State) {
+  // GET /handle/:handle - Get general information about a handle
+
+  state.app.get("/handle/:handle", async (req: JwtRequest, res: Response) => {
     try {
       const result = await state.handles.findOne({ "handle": req.params.handle });
 
@@ -41,6 +45,7 @@ export function initializeHandleEndpoints(state: State) {
       }
 
       res.json({
+        error: false,
         handle: result.handle,
         display_name: result.display_name,
       });

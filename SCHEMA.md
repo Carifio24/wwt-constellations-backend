@@ -37,6 +37,8 @@ Each document in the `images` collection may have the following fields:
   - `center_x` (float)
   - `center_y` (float)
   - `file_type` (string)
+  - `offset_x` (float)
+  - `offset_y` (float)
   - `projection` (string)
   - `quad_tree_map` (string)
   - `rotation` (number)
@@ -59,3 +61,41 @@ The following WWT parameters are currently assumed to be fixed at the following 
 - `Generic = False`
 - `Sparse = True`
 - `StockSet = False`
+
+To-do:
+
+- Credits information
+- Other storage mechanisms
+
+
+## The `scenes` collection
+
+Each document in the `scenes` collection may have the following fields:
+
+- `_id`: the ObjectID of the scene
+- `handle_id`: the ObjectID of the handle that owns this scene
+- `creation_date`: the ISODate when this scene was created
+- `place`: WWT "Place" information
+  - `ra_rad` (number) target camera RA in radians
+  - `dec_rad` (number) target camera declination in radians
+  - `zoom_deg` (number) target camera zoom in degrees (zoom = viewport height * 6)
+  - `roll_rad` (number) target camera roll angle in radians
+- `impressions` (number) the number of impressions this scene has
+- `likes` (number) the number of likes this scene has
+- `text` (string) The human-readable text associated with the scene
+- `outgoing_url` (optional string) a URL that viewers of the scene should be
+  encouraged to click
+- `content`: information about the actual contents of the scene
+  - `image_layers`: optional array of ImageLayer records (see below).
+
+An ImageLayer record may have the following fields:
+
+- `image_id`: the ObjectID of the image
+- `opacity`: the opacity with which the image should be drawn, between 0 and 1
+
+To-do:
+
+- Specify background map
+- "Publication date" or other mechanism to not immediately publish
+- Credits information (or are credits attached to images sufficient?)
+- Clarify semantics of the "text" item
