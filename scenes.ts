@@ -346,7 +346,7 @@ export function initializeSceneEndpoints(state: State) {
         }
 
         const docs = await state.scenes.find()
-          .sort({ text: 1 })
+          .sort({ creation_date: 1 })
           .skip(page_num * page_size)
           .limit(page_size)
           .toArray();

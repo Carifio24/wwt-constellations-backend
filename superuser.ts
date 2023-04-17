@@ -43,13 +43,30 @@ export function initializeSuperuserEndpoints(state: State) {
     }
   }
 
-  // POST /misc/config-database - Set up some configuration of our backing database.
+  // POST /misc/config-database - Set up some configuration of our backing
+  // database.
+  //
+  // This call must be run before importing anything, because (Azure's version
+  // of?) MongoDB requires the indexes to be defined before inserting any
+  // documents.
   state.app.post(
     "/misc/config-database",
     requireSuperuser,
-    async (_req: JwtRequest, res: Response) => {
-      await state.handles.createIndex({ "handle": 1 }, { unique: true });
-      res.json({ error: false });
+    async (req: JwtRequest, res: Response) => {
+      try {
+        // Handle names are unique:
+        await state.handles.createIndex({ "handle": 1 }, { unique: true });
+
+        // Indexes for our sorts
+        await state.images.createIndex({ "creation_date": 1 });
+        await state.scenes.createIndex({ "creation_date": 1 });
+
+        res.json({ error: false });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
     }
   );
 

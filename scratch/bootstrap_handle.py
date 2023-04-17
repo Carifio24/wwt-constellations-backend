@@ -5,11 +5,30 @@ Bootstrap a "handle" with images and scenes based on a WWT WTML file.
 """
 
 import argparse
+import time
+
+from requests.exceptions import ConnectionError
 
 from wwt_api_client import constellations as cx
 from wwt_data_formats import enums
 from wwt_data_formats.folder import Folder
 from wwt_data_formats.place import Place
+
+
+def retry(operation):
+    """
+    My compute will sometimes fail during large bootstraps due to temporary,
+    local network errors. Here's a dumb retry system since the design of the
+    openidc_client library that underlies wwt_api_client doesn't allow me to
+    activate retries at the request/urllib3 level, as far as I can see.
+    """
+    for _attempt in range(5):
+        try:
+            operation()
+            return
+        except ConnectionError:
+            print("(retrying ...)")
+            time.sleep(0.5)
 
 
 def main():
@@ -106,7 +125,7 @@ def main():
                 f"warning: item `{item.name}` has non-default stock_set setting `{item.stock_set}`"
             )
 
-        hc.add_image_from_set(item)
+        retry(lambda: hc.add_image_from_set(item))
         n_img += 1
 
     print(f"   ... done; {n_img} created")
@@ -120,7 +139,7 @@ def main():
         if not isinstance(item, Place):
             continue
 
-        hc.add_scene_from_place(item)
+        retry(lambda: hc.add_scene_from_place(item))
         n_scene += 1
 
     print(f"   ... done; {n_scene} created")
