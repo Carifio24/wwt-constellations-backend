@@ -23,12 +23,13 @@ function isOwner(req: JwtRequest, handle: MongoHandle): boolean {
   return req.auth && req.auth.sub && handle.owner_accounts.includes(req.auth.sub) || false;
 }
 
-export function canAddImages(req: JwtRequest, handle: MongoHandle): boolean {
-  // One day we might have finer-grained permissions, but not yet.
-  return isOwner(req, handle);
-}
+export type HandleCapability =
+  "addImages" |
+  "addScenes"
+  ;
 
-export function canAddScenes(req: JwtRequest, handle: MongoHandle): boolean {
+export function isAllowed(req: JwtRequest, handle: MongoHandle, _cap: HandleCapability): boolean {
+  // One day we might have finer-grained permissions, but not yet.
   return isOwner(req, handle);
 }
 

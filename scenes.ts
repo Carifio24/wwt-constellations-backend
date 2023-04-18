@@ -18,7 +18,7 @@ import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { State } from "./globals";
-import { canAddScenes } from "./handles";
+import { isAllowed } from "./handles";
 import { imageToImageset } from "./images";
 import { IoObjectId, UnitInterval } from "./util";
 
@@ -184,7 +184,7 @@ export function initializeSceneEndpoints(state: State) {
         return;
       }
 
-      if (!canAddScenes(req, handle)) {
+      if (!isAllowed(req, handle, "addScenes")) {
         res.statusCode = 403;
         res.json({ error: true, message: "Forbidden" });
         return;
