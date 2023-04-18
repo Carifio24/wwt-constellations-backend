@@ -25,7 +25,8 @@ function isOwner(req: JwtRequest, handle: MongoHandle): boolean {
 
 export type HandleCapability =
   "addImages" |
-  "addScenes"
+  "addScenes" |
+  "viewDashboard"
   ;
 
 export function isAllowed(req: JwtRequest, handle: MongoHandle, _cap: HandleCapability): boolean {
@@ -109,6 +110,39 @@ export function initializeHandleEndpoints(state: State) {
           error: false,
           results: scenes,
         });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // GET /handle/:handle/permissions - get information about the logged-in user's
+  // permissions with regards to this handle.
+  //
+  // This API is only informative -- of course, direct API calls are the final
+  // arbiters of what is and isn't allowed. But the frontend can use this
+  // information to decide what UI elements to expose to a user.
+  state.app.get(
+    "/handle/:handle/permissions",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const handle = await state.handles.findOne({ "handle": req.params.handle });
+
+        if (handle === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        const output = {
+          error: false,
+          handle: handle.handle,
+          view_dashboard: isAllowed(req, handle, "viewDashboard"),
+        };
+
+        res.json(output);
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
