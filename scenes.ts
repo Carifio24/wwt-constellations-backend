@@ -367,4 +367,82 @@ export function initializeSceneEndpoints(state: State) {
       }
     }
   );
+
+  // GET /handle/:handle/sceneinfo?page=$int&pagesize=$int - get admin
+  // information about scenes
+  //
+  // This endpoint is for the user dashboard showing summary information about
+  // the handle's scenes.
+
+  state.app.get(
+    "/handle/:handle/sceneinfo",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        // Validate input(s)
+
+        const handle = await state.handles.findOne({ "handle": req.params.handle });
+
+        if (handle === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        var page_num = 0;
+
+        try {
+          const qpage = parseInt(req.query.page as string, 10);
+
+          if (qpage >= 0) {
+            page_num = qpage;
+          }
+        } catch {
+          res.statusCode = 400;
+          res.json({ error: true, message: `invalid page number` });
+        }
+
+        var page_size = 10;
+
+        try {
+          const qps = parseInt(req.query.pagesize as string, 10);
+
+          if (qps > 0 && qps <= 100) {
+            page_size = qps;
+          }
+        } catch {
+          res.statusCode = 400;
+          res.json({ error: true, message: `invalid page size` });
+        }
+
+        // Check authorization
+
+        if (!isAllowed(req, handle, "viewDashboard")) {
+          res.statusCode = 403;
+          res.json({ error: true, message: "Forbidden" });
+          return;
+        }
+
+        // OK to proceed
+
+        const filter = { "handle_id": handle._id };
+        const count = await state.scenes.countDocuments(filter);
+        const infos = await state.scenes.find(filter)
+          .sort({ creation_date: -1 })
+          .skip(page_num * page_size)
+          .limit(page_size)
+          .project({ "_id": 1, "creation_date": 1, "impressions": 1, "likes": 1 })
+          .toArray();
+
+        res.json({
+          error: false,
+          total_count: count,
+          results: infos,
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
 }
