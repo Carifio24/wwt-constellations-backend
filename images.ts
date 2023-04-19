@@ -16,7 +16,7 @@ import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { State } from "./globals";
-import { canAddImages } from "./handles";
+import { isAllowed } from "./handles";
 
 export interface MongoImage {
   handle_id: ObjectId;
@@ -123,7 +123,7 @@ export function initializeImageEndpoints(state: State) {
         return;
       }
 
-      if (!canAddImages(req, handle)) {
+      if (!isAllowed(req, handle, "addImages")) {
         res.statusCode = 403;
         res.json({ error: true, message: "Forbidden" });
         return;
