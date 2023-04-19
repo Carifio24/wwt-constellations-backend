@@ -156,6 +156,83 @@ export function initializeHandleEndpoints(state: State) {
     }
   );
 
+  // GET /handle/:handle/stats - get some statistics about this handle
+  //
+  // This information is only accessible to dashboard-capable users.
+  state.app.get(
+    "/handle/:handle/stats",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        // Validate input(s)
+
+        const handle = await state.handles.findOne({ "handle": req.params.handle });
+
+        if (handle === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        // Check authorization
+
+        if (!isAllowed(req, handle, "viewDashboard")) {
+          res.statusCode = 403;
+          res.json({ error: true, message: "Forbidden" });
+          return;
+        }
+
+        // OK, actually do it
+
+        const imageStats = (await state.images.aggregate([
+          {
+            "$match": { handle_id: handle._id },
+          },
+          {
+            "$group": {
+              "_id": null,
+              "count": { "$count": {} },
+            }
+          },
+        ]).next())!;
+
+        const sceneStats = (await state.scenes.aggregate([
+          {
+            "$match": { handle_id: handle._id },
+          },
+          {
+            "$group": {
+              "_id": null,
+              "count": { "$count": {} },
+              "impressions": { "$sum": "$impressions" },
+              "likes": { "$sum": "$likes" },
+            }
+          },
+        ]).next())!;
+
+        // Construct the output
+
+        const output = {
+          error: false,
+          handle: handle.handle,
+          images: {
+            count: imageStats.count,
+          },
+          scenes: {
+            count: sceneStats.count,
+            impressions: sceneStats.impressions,
+            likes: sceneStats.likes,
+          },
+        };
+
+        res.json(output);
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
   // PATCH /handle/:handle - update various handle properties
 
   const HandlePatch = t.type({
