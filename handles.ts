@@ -8,6 +8,10 @@
 
 import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
+import { isLeft } from "fp-ts/Either";
+import * as t from "io-ts";
+import { PathReporter } from "io-ts/PathReporter";
+import { UpdateFilter } from "mongodb";
 
 import { State } from "./globals";
 import { sceneToJson } from "./scenes";
@@ -26,6 +30,7 @@ function isOwner(req: JwtRequest, handle: MongoHandle): boolean {
 export type HandleCapability =
   "addImages" |
   "addScenes" |
+  "editSettings" |
   "viewDashboard"
   ;
 
@@ -143,6 +148,88 @@ export function initializeHandleEndpoints(state: State) {
         };
 
         res.json(output);
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // PATCH /handle/:handle - update various handle properties
+
+  const HandlePatch = t.type({
+    display_name: t.union([t.string, t.undefined]),
+  });
+
+  type HandlePatchT = t.TypeOf<typeof HandlePatch>;
+
+  state.app.patch(
+    "/handle/:handle",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        // Validate inputs
+
+        const handle = await state.handles.findOne({ "handle": req.params.handle });
+
+        if (handle === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        const maybe = HandlePatch.decode(req.body);
+
+        if (isLeft(maybe)) {
+          res.statusCode = 400;
+          res.json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
+          return;
+        }
+
+        const input: HandlePatchT = maybe.right;
+
+        // For this operation, we might require different permissions depending
+        // on what changes are exactly being requested. Note that patch
+        // operations should either fully succeed or fully fail -- no partial
+        // applications.
+
+        let allowed = true;
+
+        // For convenience, this value should be pre-filled with whatever
+        // operations we might use below. We have to hack around the typing
+        // below, though, because TypeScript takes some elements here to be
+        // read-only.
+        let operation: UpdateFilter<MongoHandle> = { "$set": {} };
+
+        if (input.display_name) {
+          allowed = allowed && isAllowed(req, handle, "editSettings");
+
+          // Validate this particular input. (TODO: I think io-ts could do this?)
+          if (input.display_name.length > 64) {
+            res.statusCode = 400;
+            res.json({ error: true, message: "Invalid input display_name: too long" });
+            return;
+          }
+
+          (operation as any)["$set"]["display_name"] = input.display_name;
+        }
+
+        // How did we do?
+
+        if (!allowed) {
+          res.statusCode = 403;
+          res.json({ error: true, message: "Forbidden" });
+          return;
+        }
+
+        await state.handles.findOneAndUpdate(
+          { "handle": req.params.handle },
+          operation
+        );
+
+        res.json({
+          error: false,
+        });
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
