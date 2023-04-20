@@ -18,7 +18,7 @@ import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { State } from "./globals";
-import { isAllowed } from "./handles";
+import { isAllowed as handleIsAllowed } from "./handles";
 import { imageToImageset } from "./images";
 import { IoObjectId, UnitInterval } from "./util";
 
@@ -56,6 +56,35 @@ const SceneContent = t.type({
 });
 
 type SceneContentT = t.TypeOf<typeof SceneContent>;
+
+
+// Authorization tools
+
+export type SceneCapability =
+  "edit"
+  ;
+
+export async function isAllowed(state: State, req: JwtRequest, scene: MongoScene, cap: SceneCapability): Promise<boolean> {
+  // One day we might have finer-grained permissions, but not yet. We might also
+  // have some kind of caching that allows us to not always look up the owning
+  // handle info.
+
+  const owner_handle = await state.handles.findOne({ "_id": scene.handle_id });
+
+  if (owner_handle === null) {
+    throw new Error(`Internal database inconsistency: scene missing owner ${scene.handle_id}`);
+  }
+
+  switch (cap) {
+    case "edit": {
+      return handleIsAllowed(req, owner_handle, "editScenes");
+    }
+
+    default: {
+      return false; // this is a can't-happen but might as well be safe
+    }
+  }
+}
 
 
 // Turn a Scene into a basic WWT place, if possible.
@@ -184,7 +213,7 @@ export function initializeSceneEndpoints(state: State) {
         return;
       }
 
-      if (!isAllowed(req, handle, "addScenes")) {
+      if (!handleIsAllowed(req, handle, "addScenes")) {
         res.statusCode = 403;
         res.json({ error: true, message: "Forbidden" });
         return;
@@ -276,6 +305,44 @@ export function initializeSceneEndpoints(state: State) {
       res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
     }
   });
+
+  // GET /scene/:id/permissions - get information about the logged-in user's
+  // permissions with regards to this scene.
+  //
+  // This API is only informative -- of course, direct API calls are the final
+  // arbiters of what is and isn't allowed. But the frontend can use this
+  // information to decide what UI elements to expose to a user.
+  state.app.get(
+    "/scene/:id/permissions",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+
+        if (scene === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        // TODO: if we end up reporting more categories, we should somehow batch
+        // the checks to not look up the same handle over and over.
+
+        const edit = await isAllowed(state, req, scene, "edit");
+
+        const output = {
+          error: false,
+          id: scene._id,
+          edit: edit,
+        };
+
+        res.json(output);
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
 
   // GET /scene/:id/place.wtml - (try to) get WTML expressing this scene as a WWT Place.
 
@@ -416,7 +483,7 @@ export function initializeSceneEndpoints(state: State) {
 
         // Check authorization
 
-        if (!isAllowed(req, handle, "viewDashboard")) {
+        if (!handleIsAllowed(req, handle, "viewDashboard")) {
           res.statusCode = 403;
           res.json({ error: true, message: "Forbidden" });
           return;
