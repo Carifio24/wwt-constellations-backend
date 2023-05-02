@@ -273,6 +273,7 @@ export function initializeSceneEndpoints(state: State) {
         place: input.place,
         content: input.content,
         text: input.text,
+        previews: {}
       };
 
       if (input.outgoing_url) {
