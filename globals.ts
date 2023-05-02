@@ -52,7 +52,7 @@ export class Config {
     this.mongoConnectionString = connstr;
     this.mongoDbName = "constellations";
 
-    this.previewBaseUrl = process.env.PREVIEW_BASE_URL ?? "";
+    this.previewBaseUrl = process.env.CX_PREVIEW_BASE_URL ?? "";
 
     this.superuserAccountId = process.env.CX_SUPERUSER_ACCOUNT_ID ?? "nosuperuser";
   }
