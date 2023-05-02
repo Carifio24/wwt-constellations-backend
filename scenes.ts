@@ -188,8 +188,9 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State): Prom
     output.content = { image_layers: image_layers };
   }
 
+  output.previews = {};
   for (const [key, value] of Object.entries(scene.previews)) {
-    output[key] = `${state.config.previewBaseUrl}/${value}`;
+    output.previews[key] = `${state.config.previewBaseUrl}/${value}`;
   }
 
   // All done!
