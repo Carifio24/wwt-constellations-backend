@@ -22,6 +22,9 @@ export class Config {
   // The MongoDB database name in which we operate.
   mongoDbName: string;
 
+  // Preview base URL
+  previewBaseUrl: string;
+
   // The Keycloak ID of the "superuser" user. This account can access a few
   // highly privileged operations that set up administration of the website
   // through more regular IAM channels. If this is set to some kind of dummy
@@ -48,6 +51,8 @@ export class Config {
 
     this.mongoConnectionString = connstr;
     this.mongoDbName = "constellations";
+
+    this.previewBaseUrl = process.env.PREVIEW_BASE_URL ?? "";
 
     this.superuserAccountId = process.env.CX_SUPERUSER_ACCOUNT_ID ?? "nosuperuser";
   }
