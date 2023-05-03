@@ -33,6 +33,7 @@ export interface MongoScene {
 
   place: ScenePlaceT;
   content: SceneContentT;
+  previews: ScenePreviewsT;
   outgoing_url?: string;
   text: string;
 }
@@ -57,6 +58,12 @@ const SceneContent = t.type({
 
 type SceneContentT = t.TypeOf<typeof SceneContent>;
 
+const ScenePreviews = t.partial({
+  video: t.string,
+  thumbnail: t.string
+});
+
+type ScenePreviewsT = t.TypeOf<typeof ScenePreviews>;
 
 // Authorization tools
 
@@ -181,6 +188,11 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State): Prom
     output.content = { image_layers: image_layers };
   }
 
+  output.previews = {};
+  for (const [key, value] of Object.entries(scene.previews)) {
+    output.previews[key] = `${state.config.previewBaseUrl}/${value}`;
+  }
+
   // All done!
 
   return output;
@@ -262,6 +274,7 @@ export function initializeSceneEndpoints(state: State) {
         place: input.place,
         content: input.content,
         text: input.text,
+        previews: {}
       };
 
       if (input.outgoing_url) {

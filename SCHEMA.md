@@ -87,6 +87,9 @@ Each document in the `scenes` collection may have the following fields:
   encouraged to click
 - `content`: information about the actual contents of the scene
   - `image_layers`: optional array of ImageLayer records (see below).
+- `previews`: information about different preview types
+  - `video`: (optional string) The basename of the video preview in its blob container, if one exists
+  - `thumbnail`: (optional string) The basename of the preview thumbnail image in the blob container, if one exists
 
 An ImageLayer record may have the following fields:
 
