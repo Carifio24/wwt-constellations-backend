@@ -32,6 +32,7 @@ export interface MongoScene {
   likes: number;
 
   place: ScenePlaceT;
+  background_id?: ObjectId;
   content: SceneContentT;
   previews: ScenePreviewsT;
   outgoing_url?: string;
@@ -191,6 +192,20 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State): Prom
   output.previews = {};
   for (const [key, value] of Object.entries(scene.previews)) {
     output.previews[key] = `${state.config.previewBaseUrl}/${value}`;
+  }
+
+  if (scene.background_id) {
+    const bgImage = await state.images.findOne({ "_id": new ObjectId(scene.background_id) });
+
+    if (bgImage === null) {
+       throw new Error(`Database consistency failure, scene ${scene._id} missing background ${scene.background_id}`);
+    }
+
+    output.background = {
+      wwt: bgImage.wwt,
+      storage: bgImage.storage,
+    };
+
   }
 
   // All done!
