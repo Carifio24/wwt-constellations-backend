@@ -32,7 +32,6 @@ export interface MongoScene {
   likes: number;
 
   place: ScenePlaceT;
-  background_id?: ObjectId;
   content: SceneContentT;
   previews: ScenePreviewsT;
   outgoing_url?: string;
@@ -53,9 +52,14 @@ const ImageLayer = t.type({
   opacity: t.intersection([t.number, UnitInterval]),
 });
 
-const SceneContent = t.type({
-  image_layers: t.union([t.array(ImageLayer), t.undefined]),
-});
+const SceneContent = t.intersection([
+  t.partial({
+    background_id: IoObjectId,
+  }),
+  t.type({
+    image_layers: t.union([t.array(ImageLayer), t.undefined]),
+  })
+]);
 
 type SceneContentT = t.TypeOf<typeof SceneContent>;
 
@@ -157,6 +161,7 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State): Prom
     likes: scene.likes,
     place: scene.place,
     text: scene.text,
+    content: {},
   };
 
   if (scene.outgoing_url) {
@@ -186,7 +191,7 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State): Prom
       });
     }
 
-    output.content = { image_layers: image_layers };
+    output.content.image_layers = image_layers;
   }
 
   output.previews = {};
@@ -194,14 +199,14 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State): Prom
     output.previews[key] = `${state.config.previewBaseUrl}/${value}`;
   }
 
-  if (scene.background_id) {
-    const bgImage = await state.images.findOne({ "_id": new ObjectId(scene.background_id) });
+  if (scene.content.background_id) {
+    const bgImage = await state.images.findOne({ "_id": new ObjectId(scene.content.background_id) });
 
     if (bgImage === null) {
-       throw new Error(`Database consistency failure, scene ${scene._id} missing background ${scene.background_id}`);
+       throw new Error(`Database consistency failure, scene ${scene._id} missing background ${scene.content.background_id}`);
     }
 
-    output.background = {
+    output.content.background = {
       wwt: bgImage.wwt,
       storage: bgImage.storage,
     };
