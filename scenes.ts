@@ -403,6 +403,7 @@ export function initializeSceneEndpoints(state: State) {
 
   const ScenePatch = t.type({
     text: t.union([t.string, t.undefined]),
+    outgoing_url: t.union([t.string, t.undefined]),
   });
 
   type ScenePatchT = t.TypeOf<typeof ScenePatch>;
@@ -435,7 +436,8 @@ export function initializeSceneEndpoints(state: State) {
         // For this operation, we might require different permissions depending
         // on what changes are exactly being requested. Note that patch
         // operations should either fully succeed or fully fail -- no partial
-        // applications.
+        // applications. Here we cache the `canEdit` permission since everything
+        // uses it.
 
         let allowed = true;
         const canEdit = await isAllowed(state, req, scene, "edit");
@@ -457,6 +459,19 @@ export function initializeSceneEndpoints(state: State) {
           }
 
           (operation as any)["$set"]["text"] = input.text;
+        }
+
+        if (input.outgoing_url) {
+          allowed = allowed && canEdit;
+
+          // Validate.
+          if (input.outgoing_url.length > 5000) {
+            res.statusCode = 400;
+            res.json({ error: true, message: "Invalid input `outgoing_url`: too long" });
+            return;
+          }
+
+          (operation as any)["$set"]["outgoing_url"] = input.outgoing_url;
         }
 
         // How did we do?
