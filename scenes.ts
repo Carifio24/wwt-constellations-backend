@@ -406,9 +406,10 @@ export function initializeSceneEndpoints(state: State) {
 
   // PATCH /scene/:id - update various scene properties
 
-  const ScenePatch = t.type({
-    text: t.union([t.string, t.undefined]),
-    outgoing_url: t.union([t.string, t.undefined]),
+  const ScenePatch = t.partial({
+    text: t.string,
+    outgoing_url: t.string,
+    place: ScenePlace,
   });
 
   type ScenePatchT = t.TypeOf<typeof ScenePatch>;
@@ -477,6 +478,26 @@ export function initializeSceneEndpoints(state: State) {
           }
 
           (operation as any)["$set"]["outgoing_url"] = input.outgoing_url;
+        }
+
+        if (input.place) {
+          allowed = allowed && canEdit;
+
+          // Validate.
+          var valid = true;
+          valid = valid && input.place.ra_rad >= 0 && input.place.ra_rad <= 2 * Math.PI;
+          valid = valid && input.place.dec_rad >= -0.5 * Math.PI && input.place.dec_rad <= 0.5 * Math.PI;
+          valid = valid && input.place.roi_height_deg >= 0 && input.place.roi_height_deg <= 360;
+          valid = valid && input.place.roi_aspect_ratio >= 0.1 && input.place.roi_aspect_ratio <= 10;
+          valid = valid && input.place.roll_rad >= -Math.PI && valid && input.place.roll_rad <= Math.PI;
+
+          if (!valid) {
+            res.statusCode = 400;
+            res.json({ error: true, message: "Invalid input `place`" });
+            return;
+          }
+
+          (operation as any)["$set"]["place"] = input.place;
         }
 
         // How did we do?
