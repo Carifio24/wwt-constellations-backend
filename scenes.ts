@@ -41,8 +41,9 @@ export interface MongoScene {
 const ScenePlace = t.type({
   ra_rad: t.number,
   dec_rad: t.number,
-  zoom_deg: t.number,
   roll_rad: t.number,
+  roi_height_deg: t.number,
+  roi_aspect_ratio: t.number,
 });
 
 type ScenePlaceT = t.TypeOf<typeof ScenePlace>;
@@ -117,7 +118,11 @@ export async function sceneToPlace(scene: MongoScene, desc: string, root: XMLBui
   pl.att("Name", desc);
   pl.att("RA", String(scene.place.ra_rad * R2H));
   pl.att("Rotation", String(scene.place.roll_rad * R2D));
-  pl.att("ZoomLevel", String(scene.place.zoom_deg));
+
+  // The ZoomLevel setting is the height of the viewport in degrees, times six.
+  // Padding the view out by a factor of 1.2 over the size of the ROI gives nice
+  // spacing, generally.
+  pl.att("ZoomLevel", String(scene.place.roi_height_deg * 7.2));
 
   // TODO: "Constellation" attr ? "Thumbnail" ?
 
