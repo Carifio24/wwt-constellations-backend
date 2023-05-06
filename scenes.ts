@@ -13,7 +13,7 @@ import { Request as JwtRequest } from "express-jwt";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
-import { ObjectId, WithId } from "mongodb";
+import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
@@ -391,6 +391,90 @@ export function initializeSceneEndpoints(state: State) {
         root.end({ prettyPrint: true });
         res.type("application/xml")
         res.send(root.toString());
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // PATCH /scene/:id - update various scene properties
+
+  const ScenePatch = t.type({
+    text: t.union([t.string, t.undefined]),
+  });
+
+  type ScenePatchT = t.TypeOf<typeof ScenePatch>;
+
+  state.app.patch(
+    "/scene/:id",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        // Validate inputs
+
+        const thisScene = { "_id": new ObjectId(req.params.id) };
+        const scene = await state.scenes.findOne(thisScene);
+
+        if (scene === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        const maybe = ScenePatch.decode(req.body);
+
+        if (isLeft(maybe)) {
+          res.statusCode = 400;
+          res.json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
+          return;
+        }
+
+        const input: ScenePatchT = maybe.right;
+
+        // For this operation, we might require different permissions depending
+        // on what changes are exactly being requested. Note that patch
+        // operations should either fully succeed or fully fail -- no partial
+        // applications.
+
+        let allowed = true;
+        const canEdit = await isAllowed(state, req, scene, "edit");
+
+        // For convenience, this value should be pre-filled with whatever
+        // operations we might use below. We have to hack around the typing
+        // below, though, because TypeScript takes some elements here to be
+        // read-only.
+        let operation: UpdateFilter<MongoScene> = { "$set": {} };
+
+        if (input.text) {
+          allowed = allowed && canEdit;
+
+          // Validate this particular input. (TODO: I think io-ts could do this?)
+          if (input.text.length > 5000) {
+            res.statusCode = 400;
+            res.json({ error: true, message: "Invalid input `text`: too long" });
+            return;
+          }
+
+          (operation as any)["$set"]["text"] = input.text;
+        }
+
+        // How did we do?
+
+        if (!allowed) {
+          res.statusCode = 403;
+          res.json({ error: true, message: "Forbidden" });
+          return;
+        }
+
+        await state.scenes.findOneAndUpdate(
+          thisScene,
+          operation
+        );
+
+        res.json({
+          error: false,
+        });
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
