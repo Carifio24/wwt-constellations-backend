@@ -78,8 +78,11 @@ Each document in the `scenes` collection may have the following fields:
 - `place`: WWT "Place" information
   - `ra_rad` (number) target camera RA in radians
   - `dec_rad` (number) target camera declination in radians
-  - `zoom_deg` (number) target camera zoom in degrees (zoom = viewport height * 6)
   - `roll_rad` (number) target camera roll angle in radians
+  - `roi_height_deg` (number) the height of the region of interest, in degrees
+  - `roi_aspect_ratio` (number) the aspect ratio of the rectangle defining the
+    region of interest. This value is used to tune the WWT zoom level depending
+    on the aspect ratio of the user's viewport.
 - `impressions` (number) the number of impressions this scene has
 - `likes` (number) the number of likes this scene has
 - `text` (string) The human-readable text associated with the scene

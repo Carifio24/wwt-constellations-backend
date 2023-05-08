@@ -236,8 +236,8 @@ export function initializeHandleEndpoints(state: State) {
 
   // PATCH /handle/:handle - update various handle properties
 
-  const HandlePatch = t.type({
-    display_name: t.union([t.string, t.undefined]),
+  const HandlePatch = t.partial({
+    display_name: t.string,
   });
 
   type HandlePatchT = t.TypeOf<typeof HandlePatch>;
