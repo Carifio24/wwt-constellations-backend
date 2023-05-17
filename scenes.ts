@@ -670,7 +670,7 @@ export function initializeSceneEndpoints(state: State) {
   // GET /handle/:handle/sceneinfo?page=$int&pagesize=$int - get admin
   // information about scenes
   //
-  // This endpoint is for the user dashboard showing summary information about
+  // This endpoint is for the handle dashboard showing summary information about
   // the handle's scenes.
 
   state.app.get(
