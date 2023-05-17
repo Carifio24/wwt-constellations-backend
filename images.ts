@@ -11,7 +11,7 @@ import { Request as JwtRequest } from "express-jwt";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
-import { ObjectId } from "mongodb";
+import { ObjectId, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
@@ -67,6 +67,30 @@ const ImagePermissions = t.intersection([
 ]);
 
 type ImagePermissionsT = t.TypeOf<typeof ImagePermissions>;
+
+export async function imageToJson(image: WithId<MongoImage>, state: State): Promise<Record<string, any>> {
+  const handle = await state.handles.findOne({ "_id": image.handle_id });
+
+  if (handle === null) {
+    throw new Error(`Database consistency failure, image ${image._id} missing handle ${image.handle_id}`);
+  }
+
+  const output: Record<string, any> = {
+    id: image._id,
+    handle_id: image.handle_id,
+    handle: {
+      handle: handle.handle,
+      display_name: handle.display_name,
+    },
+    creation_date: image.creation_date,
+    wwt: image.wwt,
+    permissions: image.permissions,
+    storage: image.storage,
+    note: image.note,
+  };
+
+  return output;
+}
 
 export function imageToImageset(image: MongoImage, root: XMLBuilder): XMLBuilder {
   const iset = root.ele("ImageSet");
@@ -230,6 +254,31 @@ export function initializeImageEndpoints(state: State) {
           error: false,
           results: items,
         });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // GET /image/:id - information about an image
+
+  state.app.get(
+    "/image/:id",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const image = await state.images.findOne({ "_id": new ObjectId(req.params.id) });
+
+        if (image === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        const output = await imageToJson(image, state);
+        output["error"] = false;
+        res.json(output);
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
