@@ -52,7 +52,8 @@ Each document in the `images` collection may have the following fields:
 - `note` (string): a short freeform description of the image; currently intended
   only to be shown to its owning user(s).
 - `permissions`: information about image permissions (license, credits, etc.)
-  - `credits` (string): An HTML string describing image credits; HTML to allow
+  - `copyright` (string): A string describing the image's copyright statement
+  - `credits` (optional string): An HTML string describing image credits; HTML to allow
     for e.g. hyperlinks. Sanitized to prevent XSS.
   - `license` (string): A valid SPDX expression describing the image license
 

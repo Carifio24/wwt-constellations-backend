@@ -80,7 +80,7 @@ export const CleanHtml = new t.Type<string, string, unknown>(
   // Sanitize the HTML string as part of the parsing process
   (input: unknown, context: t.Context) => pipe(
     t.string.validate(input, context),
-    e.chain((str) => t.success(DOMPurify.sanitize(str, { ALLOWED_TAGS: ['b', 'strong', 'a', 'br'] })))
+    e.chain((str) => t.success(DOMPurify.sanitize(str, { ALLOWED_TAGS: ['b', 'strong', 'i', 'a', 'br'] })))
   ),
 
   // We don't need any custom encoding - just use the string encoder

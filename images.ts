@@ -56,10 +56,15 @@ const ImageStorage = t.type({
 
 type ImageStorageT = t.TypeOf<typeof ImageStorage>;
 
-const ImagePermissions = t.type({
-  credits: CleanHtml,
-  license: SpdxExpression,
-});
+const ImagePermissions = t.intersection([
+  t.type({
+    copyright: t.string,
+    license: SpdxExpression,
+  }),
+  t.partial({
+    credits: CleanHtml,
+  })
+]);
 
 type ImagePermissionsT = t.TypeOf<typeof ImagePermissions>;
 
@@ -113,6 +118,7 @@ export function initializeImageEndpoints(state: State) {
     wwt: ImageWwt,
     storage: ImageStorage,
     note: t.string,
+    permissions: ImagePermissions,
   });
 
   type ImageCreationT = t.TypeOf<typeof ImageCreation>;
@@ -158,6 +164,7 @@ export function initializeImageEndpoints(state: State) {
         wwt: input.wwt,
         storage: input.storage,
         note: input.note,
+        permissions: input.permissions,
       };
 
       try {
