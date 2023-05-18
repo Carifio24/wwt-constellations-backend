@@ -729,7 +729,7 @@ export function initializeSceneEndpoints(state: State) {
           .sort({ creation_date: -1 })
           .skip(page_num * page_size)
           .limit(page_size)
-          .project({ "_id": 1, "creation_date": 1, "impressions": 1, "likes": 1 })
+          .project({ "_id": 1, "creation_date": 1, "impressions": 1, "likes": 1, "text": 1 })
           .toArray();
 
         res.json({
