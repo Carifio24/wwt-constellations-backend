@@ -17,6 +17,7 @@ import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { State } from "./globals";
 import { isAllowed } from "./handles";
+import { CleanHtml, SpdxExpression } from "./util";
 
 export interface MongoImage {
   handle_id: ObjectId;
@@ -24,6 +25,7 @@ export interface MongoImage {
   wwt: ImageWwtT;
   storage: ImageStorageT;
   note: string;
+  permissions: ImagePermissionsT;
 }
 
 export interface MongoImageStorage {
@@ -53,6 +55,18 @@ const ImageStorage = t.type({
 });
 
 type ImageStorageT = t.TypeOf<typeof ImageStorage>;
+
+const ImagePermissions = t.intersection([
+  t.type({
+    copyright: t.string,
+    license: SpdxExpression,
+  }),
+  t.partial({
+    credits: CleanHtml,
+  })
+]);
+
+type ImagePermissionsT = t.TypeOf<typeof ImagePermissions>;
 
 export function imageToImageset(image: MongoImage, root: XMLBuilder): XMLBuilder {
   const iset = root.ele("ImageSet");
@@ -104,6 +118,7 @@ export function initializeImageEndpoints(state: State) {
     wwt: ImageWwt,
     storage: ImageStorage,
     note: t.string,
+    permissions: ImagePermissions,
   });
 
   type ImageCreationT = t.TypeOf<typeof ImageCreation>;
@@ -149,6 +164,7 @@ export function initializeImageEndpoints(state: State) {
         wwt: input.wwt,
         storage: input.storage,
         note: input.note,
+        permissions: input.permissions,
       };
 
       try {
