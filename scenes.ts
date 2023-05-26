@@ -21,6 +21,8 @@ import { State } from "./globals";
 import { isAllowed as handleIsAllowed } from "./handles";
 import { imageToImageset } from "./images";
 import { IoObjectId, UnitInterval } from "./util";
+import { addImpression, addLike, removeLike } from "./session";
+import { Session } from "express-session";
 
 const R2D = 180.0 / Math.PI;
 const R2H = 12.0 / Math.PI;
@@ -146,7 +148,7 @@ export async function sceneToPlace(scene: MongoScene, desc: string, root: XMLBui
   return pl;
 }
 
-export async function sceneToJson(scene: WithId<MongoScene>, state: State): Promise<Record<string, any>> {
+export async function sceneToJson(scene: WithId<MongoScene>, state: State, session: Session): Promise<Record<string, any>> {
   // Build up the main part of the response.
 
   const handle = await state.handles.findOne({ "_id": scene.handle_id });
@@ -164,8 +166,10 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State): Prom
     },
     creation_date: scene.creation_date,
     likes: scene.likes,
+    impressions: scene.impressions,
     place: scene.place,
     text: scene.text,
+    liked: session?.likes?.some(x => x.scene_id == scene._id.toString()) ?? false,
     content: {},
   };
 
@@ -334,7 +338,7 @@ export function initializeSceneEndpoints(state: State) {
         return;
       }
 
-      const output = await sceneToJson(scene, state);
+      const output = await sceneToJson(scene, state, req.session);
       output["error"] = false;
       res.json(output);
     } catch (err) {
@@ -424,7 +428,76 @@ export function initializeSceneEndpoints(state: State) {
     }
   );
 
-  // PATCH /scene/:id - update various scene properties
+  state.app.post("/scene/:id/impressions", async (req: JwtRequest, res: Response) => {
+    try {
+      const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+      if (scene) {
+        let update : boolean;
+        if (update = addImpression(req)) {
+          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, {$inc: {impressions: 1}})
+        } ;
+        res.statusCode = 200;
+        res.json({ error: false, id: req.params.id, update: update });
+      } else {
+        console.error(`${req.method} ${req.path} scene does not exist`);
+        res.statusCode = 404;
+        res.json({ error: true, message: `scene ${req.params.id} does not exist` });
+      }
+    } catch (err) {
+      console.error(`${req.method} ${req.path} exception:`, err);
+      res.statusCode = 500;
+      res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+    }
+
+  });
+
+  state.app.post("/scene/:id/likes", async (req: JwtRequest, res: Response) => {
+    try {
+      const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+      if (scene) {
+        let update : boolean;
+        if (update = addLike(req)) {
+          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, {$inc: {likes: 1}})
+        } ;
+        res.statusCode = 200;
+        res.json({ error: false, id: req.params.id, update: update });
+      } else {
+        console.error(`${req.method} ${req.path} scene does not exist`);
+        res.statusCode = 404;
+        res.json({ error: true, message: `scene ${req.params.id} does not exist` });
+      }
+    } catch (err) {
+      console.error(`${req.method} ${req.path} exception:`, err);
+      res.statusCode = 500;
+      res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+    }
+
+  });
+
+
+  state.app.delete("/scene/:id/likes", async (req: JwtRequest, res: Response) => {
+    try {
+      const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+      if (scene) {
+        let update : boolean;
+        if (update = removeLike(req)) {
+          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, {$inc: {likes: -1}})
+        } ;
+        res.statusCode = 200;
+        res.json({ error: false, id: req.params.id, update: update });
+      } else {
+        console.error(`${req.method} ${req.path} scene does not exist`);
+        res.statusCode = 404;
+        res.json({ error: true, message: `scene ${req.params.id} does not exist` });
+      }
+    } catch (err) {
+      console.error(`${req.method} ${req.path} exception:`, err);
+      res.statusCode = 500;
+      res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+    }
+
+  });
+
 
   const ScenePatch = t.partial({
     text: t.string,
@@ -578,7 +651,7 @@ export function initializeSceneEndpoints(state: State) {
         const scenes = [];
 
         for (var doc of docs) {
-          scenes.push(await sceneToJson(doc, state));
+          scenes.push(await sceneToJson(doc, state, req.session));
         }
 
         res.json({
