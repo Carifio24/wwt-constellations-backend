@@ -19,11 +19,10 @@ import { initializeSessionEndpoints } from "./session";
 const config = new Config();
 
 // Start setting up the server and global middleware
-
 const app: Express = express();
 
 const origin = app.get("env") === "development" ? "http://localhost:3000" : "https://wwtelescope.dev";
-app.use(cors({credentials: true, exposedHeaders: 'Set-Cookie', origin: origin}));
+app.use(cors({ credentials: true, exposedHeaders: 'Set-Cookie', origin: origin }));
 app.use(bodyParser.json());
 app.use(makeCheckAuthMiddleware(config));
 
@@ -32,21 +31,20 @@ app.use(session({
   secret: app.get('session_secret') ?? 'dev-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true, sameSite: 'none', },
-  // proxy: true
+  cookie: { secure: true, sameSite: 'none', maxAge: 1000 * 60 * 60 * 24 * 365 },
 }));
 
-app.use(function (req, res, next) {  
+app.use(function (req, res, next) {
   // This is a hack to trick express_session to send the session cookie
-  // in an insecure context (for development purposes)
-  if ((state.app.get("env") === "development")) { 
+  // in an insecure context (http) for development.
+  if ((state.app.get("env") === "development")) {
     Object.defineProperty(req, "secure", {
       value: true,
       writable: false
     });
   }
-  
-  if(req.session && !req.session.created) {
+
+  if (req.session && !req.session.created) {
     req.session.created = Date.now();
   }
   next();

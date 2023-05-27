@@ -212,7 +212,7 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
     const bgImage = await state.images.findOne({ "_id": new ObjectId(scene.content.background_id) });
 
     if (bgImage === null) {
-       throw new Error(`Database consistency failure, scene ${scene._id} missing background ${scene.content.background_id}`);
+      throw new Error(`Database consistency failure, scene ${scene._id} missing background ${scene.content.background_id}`);
     }
 
     output.content.background = {
@@ -387,7 +387,6 @@ export function initializeSceneEndpoints(state: State) {
   );
 
   // GET /scene/:id/place.wtml - (try to) get WTML expressing this scene as a WWT Place.
-
   state.app.get(
     "/scene/:id/place.wtml",
     async (req: JwtRequest, res: Response) => {
@@ -428,16 +427,17 @@ export function initializeSceneEndpoints(state: State) {
     }
   );
 
+  // POST /scene/:id/impressions - record an impression of a scene.
   state.app.post("/scene/:id/impressions", async (req: JwtRequest, res: Response) => {
     try {
       const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
       if (scene) {
-        let update : boolean;
-        if (update = addImpression(req)) {
-          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, {$inc: {impressions: 1}})
-        } ;
+        let success: boolean;
+        if (success = addImpression(req.session, req.params.id)) {
+          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, { $inc: { impressions: 1 } })
+        };
         res.statusCode = 200;
-        res.json({ error: false, id: req.params.id, update: update });
+        res.json({ error: false, id: req.params.id, success: success });
       } else {
         console.error(`${req.method} ${req.path} scene does not exist`);
         res.statusCode = 404;
@@ -451,16 +451,17 @@ export function initializeSceneEndpoints(state: State) {
 
   });
 
+  // POST /scene/:id/likes - record a like of a scene.
   state.app.post("/scene/:id/likes", async (req: JwtRequest, res: Response) => {
     try {
       const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
       if (scene) {
-        let update : boolean;
-        if (update = addLike(req)) {
-          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, {$inc: {likes: 1}})
-        } ;
+        let success: boolean;
+        if (success = addLike(req.session, req.params.id)) {
+          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, { $inc: { likes: 1 } })
+        };
         res.statusCode = 200;
-        res.json({ error: false, id: req.params.id, update: update });
+        res.json({ error: false, id: req.params.id, success: success });
       } else {
         console.error(`${req.method} ${req.path} scene does not exist`);
         res.statusCode = 404;
@@ -474,17 +475,17 @@ export function initializeSceneEndpoints(state: State) {
 
   });
 
-
+  // DELETE /scene/:id/likes - remove a like of a scene.
   state.app.delete("/scene/:id/likes", async (req: JwtRequest, res: Response) => {
     try {
       const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
       if (scene) {
-        let update : boolean;
-        if (update = removeLike(req)) {
-          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, {$inc: {likes: -1}})
-        } ;
+        let success: boolean;
+        if (success = removeLike(req.session, req.params.id)) {
+          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, { $inc: { likes: -1 } })
+        };
         res.statusCode = 200;
-        res.json({ error: false, id: req.params.id, update: update });
+        res.json({ error: false, id: req.params.id, success: success });
       } else {
         console.error(`${req.method} ${req.path} scene does not exist`);
         res.statusCode = 404;

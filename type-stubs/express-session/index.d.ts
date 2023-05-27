@@ -4,7 +4,6 @@ declare module "express-session" {
 
   interface Impression {
     scene_id: string,
-    impressions: number,
     last: number
   }
 

@@ -2,40 +2,40 @@
 import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
 import { State } from "./globals";
+import { Session } from "express-session"
 
 
-
-export function isValid(req: JwtRequest) : boolean {
-    // Check that session exist and has not been created during this request.
-    return req.session && (req.session.created + 500) < Date.now();
+// Check that session exist and has not been created during this request.
+export function isValidSession(session: Session): boolean {
+    return session && (session.created + 500) < Date.now();
 }
 
-
-export function isValidImpression(req: JwtRequest) : boolean {
+// Check that the user has not already seen this scene recently.
+export function isValidImpression(session: Session, id: string): boolean {
     // Rate limit user impressions
     const timeoutMs = 10000;
     let isValidRate = true;
-    const sceneImpression = req.session?.impressions?.find(x => x.scene_id == req.params.id);
+    const sceneImpression = session?.impressions?.find(x => x.scene_id == id);
     if (sceneImpression) {
-        isValidRate = (sceneImpression.last + timeoutMs) <  Date.now();
+        isValidRate = (sceneImpression.last + timeoutMs) < Date.now();
     }
 
-    return isValid(req) && isValidRate;
+    return isValidSession(session) && isValidRate;
 }
 
-export function addImpression(req: JwtRequest): boolean {
-    const now =  Date.now();
+// Add an impression to the session
+export function addImpression(session: Session, id: string): boolean {
+    const now = Date.now();
 
-    if (isValidImpression(req)) {
-        if (!req.session.impressions) {
-            req.session.impressions = [];
+    if (isValidImpression(session, id)) {
+        if (!session.impressions) {
+            session.impressions = [];
         }
-        const sceneImpression = req.session?.impressions?.find(x => x.scene_id == req.params.id);
+        const sceneImpression = session?.impressions?.find(x => x.scene_id == id);
         if (sceneImpression) {
-            sceneImpression.impressions++;
             sceneImpression.last = now;
         } else {
-            req.session.impressions.push({impressions: 1, scene_id: req.params.id, last: now})
+            session.impressions.push({ scene_id: id, last: now })
         }
 
         return true;
@@ -44,37 +44,41 @@ export function addImpression(req: JwtRequest): boolean {
     return false;
 }
 
-export function isValidLike(req: JwtRequest) {
-    return isValid(req) && (!req.session?.likes?.some(x => x.scene_id == req.params.id) ?? true);
+// Check that the session has not liked the given scene
+export function isValidLike(session: Session, id: string) {
+    return isValidSession(session) && (!session?.likes?.some(l => l.scene_id == id) ?? true);
 }
 
-export function addLike(req: JwtRequest): boolean {
-    if (isValidLike(req)) {
-        if (!req.session.likes) {
-            req.session.likes = [];
+// Add a like to the session
+export function addLike(session: Session, id: string): boolean {
+    if (isValidLike(session, id)) {
+        if (!session.likes) {
+            session.likes = [];
         }
 
-        req.session.likes.push({scene_id: req.params.id});
+        session.likes.push({ scene_id: id });
         return true;
     }
 
     return false;
 }
 
-
-export function isValidRemoveLike(req: JwtRequest) {
-    return req.session?.likes?.some(scene => scene.scene_id == req.params.id) ?? false;
+// Check that the session has a like for the given scene
+export function isValidRemoveLike(session: Session, id: string) {
+    return session?.likes?.some(scene => scene.scene_id == id) ?? false;
 }
 
-export function removeLike(req: JwtRequest): boolean {
-    if (isValidRemoveLike(req)) {
-        req.session.likes = req.session.likes.filter(l => l.scene_id != req.params.id);
+// Remove a like from the session
+export function removeLike(session: Session, id: string): boolean {
+    if (isValidRemoveLike(session, id)) {
+        session.likes = session.likes.filter(l => l.scene_id != id);
         return true;
     }
-    
+
     return false;
 }
 
+// POST /session/init - Initialize a session
 export function initializeSessionEndpoints(state: State) {
     state.app.post("/session/init", async (req: JwtRequest, res: Response) => {
         req.session.created = Date.now();
