@@ -4,6 +4,7 @@
 
 import express, { Express, Request, Response } from "express";
 import bodyParser from "body-parser";
+import MongoStore from "connect-mongo";
 import cors from "cors";
 import { MongoClient } from "mongodb";
 import session from "express-session";
@@ -27,10 +28,36 @@ app.use(cors({
   exposedHeaders: 'Set-Cookie',
   origin: config.corsOrigins
 }));
+
 app.use(bodyParser.json());
+
 app.use(makeCheckAuthMiddleware(config));
 
+// Before we can set up the session handling, we need to set up our connection
+// to the MongoDB server that will store session information.
+//
+// We can't actually do anything useful with our database variables until we
+// connect to the DB, though, and that happens asynchronously at the end of this
+// file.
+
+const dbserver = new MongoClient(config.mongoConnectionString);
+const database = dbserver.db(config.mongoDbName);
+const dbpromise = dbserver.connect();
+
+const sessionTTLSeconds = 14 * 24 * 60 * 60; // 14 days
+
+const sessionStore = MongoStore.create({
+  clientPromise: dbpromise,
+  dbName: "constellations",
+  collectionName: "sessions",
+  ttl: sessionTTLSeconds,
+  // With Azure's CosmosDB, we can't use "native" for autoRemove
+  autoRemove: "interval",
+  autoRemoveInterval: 10, // minutes
+});
+
 app.set("trust proxy", 1);
+
 app.use(session({
   secret: config.sessionSecrets,
   resave: false,
@@ -39,8 +66,9 @@ app.use(session({
     httpOnly: true,
     secure: true,
     sameSite: 'none',
-    maxAge: 1000 * 60 * 60 * 24 * 365,
+    maxAge: 1000 * sessionTTLSeconds,
   },
+  store: sessionStore,
 }));
 
 app.use(function (req, res, next) {
@@ -59,14 +87,6 @@ app.use(function (req, res, next) {
   next();
 });
 
-
-
-// Prepare to connect to the Mongo server. We can"t actually do anything useful
-// with our database variables until we connect to the DB, though, and that
-// happens asynchronously at the end of this file.
-
-const dbserver = new MongoClient(config.mongoConnectionString);
-const database = dbserver.db(config.mongoDbName);
 
 // Put it all together.
 
@@ -91,7 +111,7 @@ initializeSessionEndpoints(state);
 // Let's get started!
 
 (async () => {
-  await dbserver.connect();
+  await dbpromise;
   console.log("Connected to database!");
 
   app.listen(config.port, () => {
