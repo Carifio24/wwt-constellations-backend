@@ -32,7 +32,7 @@ app.use(makeCheckAuthMiddleware(config));
 
 app.set("trust proxy", 1);
 app.use(session({
-  secret: process.env.session_secret ?? 'dev-secret',
+  secret: config.sessionSecrets,
   resave: false,
   saveUninitialized: false,
   cookie: {

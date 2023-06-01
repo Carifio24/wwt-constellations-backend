@@ -28,6 +28,13 @@ export class Config {
   // Preview base URL
   previewBaseUrl: string;
 
+  // Secrets used to hash session cookies. The first item in the list is the
+  // active secret used for new sessions; other items are older secrets that are
+  // used for checking. So, as we rotate secrets, we move them backwards in the
+  // list and eventually drop them when we're comfortable with resetting their
+  // corresponding sessions.
+  sessionSecrets: string[];
+
   // The Keycloak ID of the "superuser" user. This account can access a few
   // highly privileged operations that set up administration of the website
   // through more regular IAM channels. If this is set to some kind of dummy
@@ -54,11 +61,9 @@ export class Config {
 
     this.mongoConnectionString = connstr;
     this.mongoDbName = "constellations";
-
     this.corsOrigins = (process.env.CX_CORS_ORIGINS ?? "http://localhost:3000").split(" ");
-
     this.previewBaseUrl = process.env.CX_PREVIEW_BASE_URL ?? "";
-
+    this.sessionSecrets = (process.env.CX_SESSION_SECRETS ?? "dev-secret").split(" ");
     this.superuserAccountId = process.env.CX_SUPERUSER_ACCOUNT_ID ?? "nosuperuser";
   }
 }
