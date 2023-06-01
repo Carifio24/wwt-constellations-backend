@@ -59,31 +59,24 @@ const sessionStore = MongoStore.create({
 app.set("trust proxy", 1);
 
 app.use(session({
+  name: "cxsession",
   secret: config.sessionSecrets,
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: true,
+    secure: !is_dev,
     sameSite: 'none',
     maxAge: 1000 * sessionTTLSeconds,
   },
   store: sessionStore,
 }));
 
-app.use(function (req, res, next) {
-  // This is a hack to trick express_session to send the session cookie
-  // in an insecure context (http) for development.
-  if (is_dev) {
-    Object.defineProperty(req, "secure", {
-      value: true,
-      writable: false
-    });
-  }
-
+app.use(function (req, _res, next) {
   if (req.session && !req.session.created) {
     req.session.created = Date.now();
   }
+
   next();
 });
 
