@@ -35,7 +35,12 @@ app.use(session({
   secret: process.env.session_secret ?? 'dev-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: true, sameSite: 'none', maxAge: 1000 * 60 * 60 * 24 * 365 },
+  cookie: {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    maxAge: 1000 * 60 * 60 * 24 * 365,
+  },
 }));
 
 app.use(function (req, res, next) {
