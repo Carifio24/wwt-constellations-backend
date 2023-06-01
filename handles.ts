@@ -109,7 +109,7 @@ export function initializeHandleEndpoints(state: State) {
         const scenes = [];
 
         for (var doc of docs) {
-          scenes.push(await sceneToJson(doc, state));
+          scenes.push(await sceneToJson(doc, state, req.session));
         }
 
         res.json({
