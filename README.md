@@ -45,11 +45,16 @@ Environment variables:
 - `KEYCLOAK_URL` to set the location of the Keycloak server; default is
   `http://localhost:8080/`. If the value of this setting does not end with a slash,
   the server appends one internally.
+- `CX_CORS_ORIGINS` is a space-delimited list of origins allowed for [CORS]
+  requests. Default is `http://localhost:3000`, suitable only for local testing
+  of the frontend. The special value `*` meaning "all origins" is not compatible
+  with the backend's session cookie implementation.
 - `CX_PREVIEW_BASE_URL` sets the base used to construct the URLs of social media
   preview content associated with different scenes.
 - `CX_SUPERUSER_ACCOUNT_ID` sets the Keycloak account ID of an account that can
   perform some special administrative tasks.
 
+[CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 
 ## Bootstrapping a Development Environment
 

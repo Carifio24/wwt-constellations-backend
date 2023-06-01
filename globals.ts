@@ -7,6 +7,9 @@ import { MongoImage } from "./images";
 import { MongoScene } from "./scenes";
 
 export class Config {
+  // The CORS origins that will be listed in our Access-Control-Allow-Origin header.
+  corsOrigins: string[];
+
   // The port number on which the server will listen.
   port: number;
 
@@ -51,6 +54,8 @@ export class Config {
 
     this.mongoConnectionString = connstr;
     this.mongoDbName = "constellations";
+
+    this.corsOrigins = (process.env.CX_CORS_ORIGINS ?? "http://localhost:3000").split(" ");
 
     this.previewBaseUrl = process.env.CX_PREVIEW_BASE_URL ?? "";
 
