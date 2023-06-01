@@ -28,7 +28,7 @@ app.use(makeCheckAuthMiddleware(config));
 
 app.set("trust proxy", 1);
 app.use(session({
-  secret: app.get('session_secret') ?? 'dev-secret',
+  secret: process.env.session_secret ?? 'dev-secret',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: true, sameSite: 'none', maxAge: 1000 * 60 * 60 * 24 * 365 },
