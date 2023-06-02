@@ -351,6 +351,47 @@ export function initializeImageEndpoints(state: State) {
     }
   );
 
+  // GET /image/:id/permissions - get information about the logged-in user's
+  // permissions with regards to this image.
+  //
+  // Note that this API regards website authorization, not the information about
+  // copyright, credits, etc.
+  //
+  // This API is only informative -- of course, direct API calls are the final
+  // arbiters of what is and isn't allowed. But the frontend can use this
+  // information to decide what UI elements to expose to a user.
+  state.app.get(
+    "/image/:id/permissions",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const image = await state.images.findOne({ "_id": new ObjectId(req.params.id) });
+
+        if (image === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        // TODO: if we end up reporting more categories, we should somehow batch
+        // the checks to not look up the same handle over and over.
+
+        const edit = await isAllowed(state, req, image, "edit");
+
+        const output = {
+          error: false,
+          id: image._id,
+          edit: edit,
+        };
+
+        res.json(output);
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
   // PATCH /image/:id - update image properties
 
   const ImagePatch = t.partial({
