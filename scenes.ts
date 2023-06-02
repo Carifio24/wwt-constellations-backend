@@ -12,6 +12,7 @@ import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
+import axios from "axios";
 import { PathReporter } from "io-ts/PathReporter";
 import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
@@ -146,6 +147,18 @@ export async function sceneToPlace(scene: MongoScene, desc: string, root: XMLBui
   }
 
   return pl;
+}
+
+export async function requestPreviewCreation(state: State, sceneID: string | ObjectId) {
+  axios.post(`${state.config.previewerUrl}/create-preview/${sceneID}`)
+  .then(response => {
+    // Note that a 200 OK response does NOT mean that the preview completed successfully,
+    // just that the previewer successfully received our job request
+    if (response.status !== 200) {
+      console.error(`Previewer returned error for scene ${sceneID}`);
+    }
+  })
+  .catch(error => console.error(error));
 }
 
 export async function sceneToJson(scene: WithId<MongoScene>, state: State, session: Session): Promise<Record<string, any>> {
@@ -323,6 +336,9 @@ export function initializeSceneEndpoints(state: State) {
           id: "" + result.insertedId,
           rel_url: "/scene/" + encodeURIComponent("" + result.insertedId),
         });
+
+        requestPreviewCreation(state, result.insertedId);
+
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
@@ -612,6 +628,8 @@ export function initializeSceneEndpoints(state: State) {
           thisScene,
           operation
         );
+
+        requestPreviewCreation(state, req.params.id);
 
         res.json({
           error: false,
