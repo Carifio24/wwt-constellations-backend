@@ -11,7 +11,7 @@ import { Request as JwtRequest } from "express-jwt";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
-import { ObjectId } from "mongodb";
+import { ObjectId, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
@@ -26,10 +26,6 @@ export interface MongoImage {
   storage: ImageStorageT;
   note: string;
   permissions: ImagePermissionsT;
-}
-
-export interface MongoImageStorage {
-  legacy_url_template: string | undefined;
 }
 
 const ImageWwt = t.type({
@@ -68,6 +64,30 @@ const ImagePermissions = t.intersection([
 
 type ImagePermissionsT = t.TypeOf<typeof ImagePermissions>;
 
+export async function imageToJson(image: WithId<MongoImage>, state: State): Promise<Record<string, any>> {
+  const handle = await state.handles.findOne({ "_id": image.handle_id });
+
+  if (handle === null) {
+    throw new Error(`Database consistency failure, image ${image._id} missing handle ${image.handle_id}`);
+  }
+
+  const output: Record<string, any> = {
+    id: image._id,
+    handle_id: image.handle_id,
+    handle: {
+      handle: handle.handle,
+      display_name: handle.display_name,
+    },
+    creation_date: image.creation_date,
+    wwt: image.wwt,
+    permissions: image.permissions,
+    storage: image.storage,
+    note: image.note,
+  };
+
+  return output;
+}
+
 export function imageToImageset(image: MongoImage, root: XMLBuilder): XMLBuilder {
   const iset = root.ele("ImageSet");
 
@@ -102,9 +122,13 @@ export function imageToImageset(image: MongoImage, root: XMLBuilder): XMLBuilder
     throw new Error("no derivable URL for imageset WTML");
   }
 
-  // TODO: credits etc!!!
-
   iset.ele("Description").txt(image.note);
+
+  if (image.permissions.credits) {
+    iset.ele("Credits").txt(image.permissions.credits);
+  }
+
+  // TODO? CreditsUrl pointing to somewhere in Constellations frontend?
   iset.ele("ThumbnailUrl").txt(image.wwt.thumbnail_url);
 
   return iset;
@@ -223,13 +247,38 @@ export function initializeImageEndpoints(state: State) {
         const items = await state.images.find(
           { "storage.legacy_url_template": { $eq: input.wwt_legacy_url } },
         ).project(
-          { "wwt": false }
+          { "_id": 1, "handle_id": 1, "creation_date": 1, "note": 1, "storage": 1 }
         ).toArray();
 
         res.json({
           error: false,
           results: items,
         });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // GET /image/:id - information about an image
+
+  state.app.get(
+    "/image/:id",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const image = await state.images.findOne({ "_id": new ObjectId(req.params.id) });
+
+        if (image === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        const output = await imageToJson(image, state);
+        output["error"] = false;
+        res.json(output);
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
@@ -264,6 +313,84 @@ export function initializeImageEndpoints(state: State) {
         root.end({ prettyPrint: true });
         res.type("application/xml")
         res.send(root.toString());
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // GET /handle/:handle/imageinfo?page=$int&pagesize=$int - get admin
+  // information about images
+  //
+  // This endpoint is for the handle dashboard showing summary information about
+  // the handle's images.
+
+  state.app.get(
+    "/handle/:handle/imageinfo",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        // Validate input(s)
+
+        const handle = await state.handles.findOne({ "handle": req.params.handle });
+
+        if (handle === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        var page_num = 0;
+
+        try {
+          const qpage = parseInt(req.query.page as string, 10);
+
+          if (qpage >= 0) {
+            page_num = qpage;
+          }
+        } catch {
+          res.statusCode = 400;
+          res.json({ error: true, message: `invalid page number` });
+        }
+
+        var page_size = 10;
+
+        try {
+          const qps = parseInt(req.query.pagesize as string, 10);
+
+          if (qps > 0 && qps <= 100) {
+            page_size = qps;
+          }
+        } catch {
+          res.statusCode = 400;
+          res.json({ error: true, message: `invalid page size` });
+        }
+
+        // Check authorization
+
+        if (!isAllowed(req, handle, "viewDashboard")) {
+          res.statusCode = 403;
+          res.json({ error: true, message: "Forbidden" });
+          return;
+        }
+
+        // OK to proceed
+
+        const filter = { "handle_id": handle._id };
+        const count = await state.images.countDocuments(filter);
+        const infos = await state.images.find(filter)
+          .sort({ creation_date: -1 })
+          .skip(page_num * page_size)
+          .limit(page_size)
+          .project({ "_id": 1, "handle_id": 1, "creation_date": 1, "note": 1, "storage": 1 })
+          .toArray();
+
+        res.json({
+          error: false,
+          total_count: count,
+          results: infos,
+        });
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;

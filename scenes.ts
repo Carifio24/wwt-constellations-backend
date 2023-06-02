@@ -191,6 +191,7 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
 
       const image_info = {
         wwt: image.wwt,
+        permissions: image.permissions,
         storage: image.storage,
       };
 
@@ -203,10 +204,14 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
     output.content.image_layers = image_layers;
   }
 
+  // Fill in complete URLs for social-media preview links
+
   output.previews = {};
   for (const [key, value] of Object.entries(scene.previews)) {
     output.previews[key] = `${state.config.previewBaseUrl}/${value}`;
   }
+
+  // Populate information about the background, if it's been specified
 
   if (scene.content.background_id) {
     const bgImage = await state.images.findOne({ "_id": new ObjectId(scene.content.background_id) });
@@ -217,9 +222,9 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
 
     output.content.background = {
       wwt: bgImage.wwt,
+      permissions: bgImage.permissions,
       storage: bgImage.storage,
     };
-
   }
 
   // All done!
@@ -670,7 +675,7 @@ export function initializeSceneEndpoints(state: State) {
   // GET /handle/:handle/sceneinfo?page=$int&pagesize=$int - get admin
   // information about scenes
   //
-  // This endpoint is for the user dashboard showing summary information about
+  // This endpoint is for the handle dashboard showing summary information about
   // the handle's scenes.
 
   state.app.get(
@@ -729,7 +734,7 @@ export function initializeSceneEndpoints(state: State) {
           .sort({ creation_date: -1 })
           .skip(page_num * page_size)
           .limit(page_size)
-          .project({ "_id": 1, "creation_date": 1, "impressions": 1, "likes": 1 })
+          .project({ "_id": 1, "creation_date": 1, "impressions": 1, "likes": 1, "text": 1 })
           .toArray();
 
         res.json({

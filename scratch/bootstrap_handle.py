@@ -46,6 +46,18 @@ def main():
         required=True,
     )
     parser.add_argument(
+        "--copyright",
+        metavar="TEXT",
+        help="The copyright statement to attach to the imported images",
+        required=True,
+    )
+    parser.add_argument(
+        "--license-id",
+        metavar="SPDX-IDENTIFIER",
+        help="The SPDX license identifier to attach to the imported images",
+        required=True,
+    )
+    parser.add_argument(
         "handle",
         metavar="HANDLE",
         help="The handle to create and initialize",
@@ -125,7 +137,9 @@ def main():
                 f"warning: item `{item.name}` has non-default stock_set setting `{item.stock_set}`"
             )
 
-        retry(lambda: hc.add_image_from_set(item))
+        retry(
+            lambda: hc.add_image_from_set(item, settings.copyright, settings.license_id)
+        )
         n_img += 1
 
     print(f"   ... done; {n_img} created")
