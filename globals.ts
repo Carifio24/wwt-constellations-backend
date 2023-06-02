@@ -34,6 +34,9 @@ export class Config {
   // list and eventually drop them when we're comfortable with resetting their
   // corresponding sessions.
   sessionSecrets: string[];
+  // 
+  // Previewer server URL
+  previewerUrl: string;
 
   // The Keycloak ID of the "superuser" user. This account can access a few
   // highly privileged operations that set up administration of the website
@@ -64,6 +67,11 @@ export class Config {
     this.corsOrigins = (process.env.CX_CORS_ORIGINS ?? "http://localhost:3000").split(" ");
     this.previewBaseUrl = process.env.CX_PREVIEW_BASE_URL ?? "";
     this.sessionSecrets = (process.env.CX_SESSION_SECRETS ?? "dev-secret").split(" ");
+    const previewerUrl = process.env.CX_PREVIEWER_URL;
+    if (previewerUrl === undefined) {
+      throw new Error("must define $CX_PREVIEWER_URL");
+    }
+    this.previewerUrl = previewerUrl;
     this.superuserAccountId = process.env.CX_SUPERUSER_ACCOUNT_ID ?? "nosuperuser";
   }
 }
