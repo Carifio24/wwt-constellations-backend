@@ -28,10 +28,6 @@ export interface MongoImage {
   permissions: ImagePermissionsT;
 }
 
-export interface MongoImageStorage {
-  legacy_url_template: string | undefined;
-}
-
 const ImageWwt = t.type({
   base_degrees_per_tile: t.number,
   bottoms_up: t.boolean,
@@ -126,9 +122,13 @@ export function imageToImageset(image: MongoImage, root: XMLBuilder): XMLBuilder
     throw new Error("no derivable URL for imageset WTML");
   }
 
-  // TODO: credits etc!!!
-
   iset.ele("Description").txt(image.note);
+
+  if (image.permissions.credits) {
+    iset.ele("Credits").txt(image.permissions.credits);
+  }
+
+  // TODO? CreditsUrl pointing to somewhere in Constellations frontend?
   iset.ele("ThumbnailUrl").txt(image.wwt.thumbnail_url);
 
   return iset;
