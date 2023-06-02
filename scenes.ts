@@ -504,6 +504,7 @@ export function initializeSceneEndpoints(state: State) {
 
   });
 
+  // PATCH /scene/:id - update scene properties
 
   const ScenePatch = t.partial({
     text: t.string,

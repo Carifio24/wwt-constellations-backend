@@ -30,6 +30,7 @@ function isOwner(req: JwtRequest, handle: MongoHandle): boolean {
 export type HandleCapability =
   "addImages" |
   "addScenes" |
+  "editImages" |
   "editScenes" |
   "editSettings" |
   "viewDashboard"
