@@ -247,7 +247,7 @@ export function initializeImageEndpoints(state: State) {
         const items = await state.images.find(
           { "storage.legacy_url_template": { $eq: input.wwt_legacy_url } },
         ).project(
-          { "wwt": false }
+          { "_id": 1, "handle_id": 1, "creation_date": 1, "note": 1, "storage": 1 }
         ).toArray();
 
         res.json({
