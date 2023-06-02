@@ -11,12 +11,12 @@ import { Request as JwtRequest } from "express-jwt";
 import { isLeft } from "fp-ts/Either";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
-import { ObjectId, WithId } from "mongodb";
+import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { State } from "./globals";
-import { isAllowed } from "./handles";
+import { isAllowed as handleIsAllowed } from "./handles";
 import { CleanHtml, SpdxExpression } from "./util";
 
 export interface MongoImage {
@@ -63,6 +63,36 @@ const ImagePermissions = t.intersection([
 ]);
 
 type ImagePermissionsT = t.TypeOf<typeof ImagePermissions>;
+
+// Authorization tools
+
+export type ImageCapability =
+  "edit"
+  ;
+
+export async function isAllowed(state: State, req: JwtRequest, image: MongoImage, cap: ImageCapability): Promise<boolean> {
+  // One day we might have finer-grained permissions, but not yet. We might also
+  // have some kind of caching that allows us to not always look up the owning
+  // handle info.
+
+  const owner_handle = await state.handles.findOne({ "_id": image.handle_id });
+
+  if (owner_handle === null) {
+    throw new Error(`Internal database inconsistency: image missing owner ${image.handle_id}`);
+  }
+
+  switch (cap) {
+    case "edit": {
+      return handleIsAllowed(req, owner_handle, "editImages");
+    }
+
+    default: {
+      return false; // this is a can't-happen but might as well be safe
+    }
+  }
+}
+
+// Various data exports
 
 export async function imageToJson(image: WithId<MongoImage>, state: State): Promise<Record<string, any>> {
   const handle = await state.handles.findOne({ "_id": image.handle_id });
@@ -162,7 +192,7 @@ export function initializeImageEndpoints(state: State) {
         return;
       }
 
-      if (!isAllowed(req, handle, "addImages")) {
+      if (!handleIsAllowed(req, handle, "addImages")) {
         res.statusCode = 403;
         res.json({ error: true, message: "Forbidden" });
         return;
@@ -321,6 +351,140 @@ export function initializeImageEndpoints(state: State) {
     }
   );
 
+  // GET /image/:id/permissions - get information about the logged-in user's
+  // permissions with regards to this image.
+  //
+  // Note that this API regards website authorization, not the information about
+  // copyright, credits, etc.
+  //
+  // This API is only informative -- of course, direct API calls are the final
+  // arbiters of what is and isn't allowed. But the frontend can use this
+  // information to decide what UI elements to expose to a user.
+  state.app.get(
+    "/image/:id/permissions",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const image = await state.images.findOne({ "_id": new ObjectId(req.params.id) });
+
+        if (image === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        // TODO: if we end up reporting more categories, we should somehow batch
+        // the checks to not look up the same handle over and over.
+
+        const edit = await isAllowed(state, req, image, "edit");
+
+        const output = {
+          error: false,
+          id: image._id,
+          edit: edit,
+        };
+
+        res.json(output);
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // PATCH /image/:id - update image properties
+
+  const ImagePatch = t.partial({
+    note: t.string,
+    permissions: ImagePermissions,
+  });
+
+  type ImagePatchT = t.TypeOf<typeof ImagePatch>;
+
+  state.app.patch(
+    "/image/:id",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        // Validate inputs
+
+        const thisImage = { "_id": new ObjectId(req.params.id) };
+        const image = await state.images.findOne(thisImage);
+
+        if (image === null) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        const maybe = ImagePatch.decode(req.body);
+
+        if (isLeft(maybe)) {
+          res.statusCode = 400;
+          res.json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
+          return;
+        }
+
+        const input: ImagePatchT = maybe.right;
+
+        // For this operation, we might require different permissions depending
+        // on what changes are exactly being requested. Note that patch
+        // operations should either fully succeed or fully fail -- no partial
+        // applications. Here we cache the `canEdit` permission since everything
+        // uses it.
+
+        let allowed = true;
+        const canEdit = await isAllowed(state, req, image, "edit");
+
+        // For convenience, this value should be pre-filled with whatever
+        // operations we might use below. We have to hack around the typing
+        // below, though, because TypeScript takes some elements here to be
+        // read-only.
+        let operation: UpdateFilter<MongoImage> = { "$set": {} };
+
+        if (input.note) {
+          allowed = allowed && canEdit;
+
+          // Validate this particular input. (TODO: I think io-ts could do this?)
+          if (input.note.length > 500) {
+            res.statusCode = 400;
+            res.json({ error: true, message: "Invalid input `note`: too long" });
+            return;
+          }
+
+          (operation as any)["$set"]["note"] = input.note;
+        }
+
+        if (input.permissions) {
+          // Validation is performed by io-ts, which checks that credits is
+          // CleanHtml and that license is an SPDX license identifier.
+          allowed = allowed && canEdit;
+          (operation as any)["$set"]["permissions"] = input.permissions;
+        }
+
+        // How did we do?
+
+        if (!allowed) {
+          res.statusCode = 403;
+          res.json({ error: true, message: "Forbidden" });
+          return;
+        }
+
+        await state.images.findOneAndUpdate(
+          thisImage,
+          operation
+        );
+
+        res.json({
+          error: false,
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
   // GET /handle/:handle/imageinfo?page=$int&pagesize=$int - get admin
   // information about images
   //
@@ -369,7 +533,7 @@ export function initializeImageEndpoints(state: State) {
 
         // Check authorization
 
-        if (!isAllowed(req, handle, "viewDashboard")) {
+        if (!handleIsAllowed(req, handle, "viewDashboard")) {
           res.statusCode = 403;
           res.json({ error: true, message: "Forbidden" });
           return;
