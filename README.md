@@ -2,10 +2,15 @@
 
 This is an ExpressJS web server that communicates with a [MongoDB] storage
 backend (location specified with the `MONGO_CONNECTION_STRING` environment
-variable) and a [Keycloak server][keycloak] (specified with `KEYCLOAK_URL`).
+variable), a [Keycloak server][keycloak] (specified with `KEYCLOAK_URL`), and an
+instance of the [WWT Constellations previewer service][previewer] (specified
+with `CX_PREVIEW_SERVICE_URL`), which in turn relies on an [Azure Storage
+server][azurite] (potentially using a [local emulator][azurite]).
 
 [keycloak]: https://www.keycloak.org/
 [MongoDB]: https://www.mongodb.com/
+[previewer]: https://github.com/WorldWideTelescope/wwt-constellations-previewer/
+[azurite]: https://github.com/Azure/Azurite
 
 The [WWT Constellations frontend server][frontend] communicates with this
 backend to create the WWT Constellations app experience. See the frontend README
@@ -51,6 +56,10 @@ Environment variables:
   with the backend's session cookie implementation.
 - `CX_PREVIEW_BASE_URL` sets the base used to construct the URLs of social media
   preview content associated with different scenes.
+- `CX_PREVIEW_SERVICE_URL` sets the URL of the
+  [wwt-constellations-previewer][previewer] service, which creates previews and
+  deposits them in the storage backend. No default, but for local testing the
+  usual setting would be `http://localhost:5000`.
 - `CX_SESSION_SECRETS` is a space-delimited list of secrets used to hash session
   cookies. Default is `dev-secret`. The first secret is used for creating new
   sessions; any subsequent secrets are used for checking existing sessions,
@@ -66,6 +75,10 @@ Bootstrapping a server for local testing requires a bit of work to set up a
 complete environment. The following steps use Docker to get everything going.
 They have been tested on a Linux environment but might work on other operating
 systems as well.
+
+(We should really set this up in [docker-compose] but haven't yet done so!)
+
+[docker-compose]: https://docs.docker.com/compose/
 
 1. First, you need to set up a [Keycloak][keycloak] identity server. It will not
   be secure, but that's OK for development purposes.
@@ -119,6 +132,49 @@ systems as well.
         ```
         MONGO_CONNECTION_STRING="mongodb://admin:mypass@localhost:27017/"
         ```
+1. Next, we need an Azure Storage service, which can be emulated with
+   [Azurite][azurite].
+    1. Create or choose a local directory in which your data will be stored.
+    1. More Docker:
+          ```
+          docker create \
+            --name cx-storage \
+            -p 10000:10000 \
+            -v {your-data-directory}:/data:rw \
+            mcr.microsoft.com/azure-storage/azurite \
+            azurite-blob --blobHost 0.0.0.0
+
+          docker start cx-storage
+          ```
+    1. Export an environment variable named `AZURE_STORAGE_CONNECTION_STRING`
+        using the default HTTP connection string for the blob service [listed in the
+        Azurite README](https://github.com/Azure/Azurite#connection-strings).
+    1. Create a storage container in the service named `previews`. If you use the
+        ["az" CLI tool](https://learn.microsoft.com/en-us/cli/azure/), you can do
+        this with:
+        ```
+        az storage container create --name previews
+        ```
+1. After this, you can start an instance of the [previewer service][previewer].
+    See [the previewer
+    README](https://github.com/WorldWideTelescope/wwt-constellations-previewer/#readme)
+    for instructions.
+    1. If you build the previewer as a Docker image, you can run it with:
+        ```
+        docker create \
+          --name cx-previewer \
+          --net=host \
+          -e NUXT_PUBLIC_API_URL={your value} \
+          -e MONGO_CONNECTION_STRING={your value} \
+          -e AZURE_STORAGE_CONNECTION_STRING={your value} \
+          aasworldwidetelescope/constellations-previewer:latest
+
+        docker start cx-previewer
+        ```
+    1. Add a line to your `.env` file of the form:
+        ```
+        CX_PREVIEW_SERVICE_URL="http://localhost:5000"
+        ```
 1. Now we should be able to successfully start the backend server.
     1. Run `yarn install` (if needed) to fetch dependencies
     1. Run `yarn build` to build it
@@ -155,6 +211,8 @@ systems as well.
             python3 scratch/bootstrap_handle.py \
               --display-name "James Webb Space Telescope" \
               --my-account-id {your-account-id} \
+              --copyright "Public domain" \
+              --license-id CC-PDDC \
               jwst \
               jwst.wtml
             ```
