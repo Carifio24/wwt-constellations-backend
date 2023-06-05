@@ -149,7 +149,7 @@ export async function sceneToPlace(scene: MongoScene, desc: string, root: XMLBui
   return pl;
 }
 
-export async function requestPreviewCreation(state: State, sceneID: string | ObjectId) {
+export function requestPreviewCreation(state: State, sceneID: string | ObjectId) {
   axios.post(`${state.config.previewerUrl}/create-preview/${sceneID}`)
   .then(response => {
     // Note that a 200 OK response does NOT mean that the preview completed successfully,
