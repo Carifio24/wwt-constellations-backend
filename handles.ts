@@ -195,7 +195,9 @@ export function initializeHandleEndpoints(state: State) {
               "count": { "$count": {} },
             }
           },
-        ]).next())!;
+        ]).next()) || {
+          count: 0,
+        };
 
         const sceneStats = (await state.scenes.aggregate([
           {
@@ -209,7 +211,11 @@ export function initializeHandleEndpoints(state: State) {
               "likes": { "$sum": "$likes" },
             }
           },
-        ]).next())!;
+        ]).next()) || {
+          count: 0,
+          impressions: 0,
+          likes: 0,
+        };
 
         // Construct the output
 
