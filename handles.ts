@@ -192,10 +192,12 @@ export function initializeHandleEndpoints(state: State) {
           {
             "$group": {
               "_id": null,
-              "count": { "$count": {} },
+              "count": { "$sum": 1 }, // Azure Cosmos doesn't support $count
             }
           },
-        ]).next())!;
+        ]).next()) || {
+          count: 0,
+        };
 
         const sceneStats = (await state.scenes.aggregate([
           {
@@ -204,12 +206,16 @@ export function initializeHandleEndpoints(state: State) {
           {
             "$group": {
               "_id": null,
-              "count": { "$count": {} },
+              "count": { "$sum": 1 }, // Azure Cosmos doesn't support $count
               "impressions": { "$sum": "$impressions" },
               "likes": { "$sum": "$likes" },
             }
           },
-        ]).next())!;
+        ]).next()) || {
+          count: 0,
+          impressions: 0,
+          likes: 0,
+        };
 
         // Construct the output
 
