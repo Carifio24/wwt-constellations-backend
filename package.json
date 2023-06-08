@@ -30,6 +30,7 @@
   },
   "license": "MIT",
   "main": "index.js",
+  "packageManager": "yarn@3.6.0",
   "name": "@wwtelescope/constellations-api",
   "scripts": {
     "build": "npx tsc",

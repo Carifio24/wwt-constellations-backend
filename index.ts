@@ -26,7 +26,7 @@ const is_dev = app.get("env") === "development";
 app.use(cors({
   credentials: true,
   exposedHeaders: 'Set-Cookie',
-  origin: config.corsOrigins
+  origin: true, // reflect origin back to requestor
 }));
 
 app.use(bodyParser.json());
