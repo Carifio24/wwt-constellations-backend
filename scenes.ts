@@ -512,10 +512,15 @@ export function initializeSceneEndpoints(state: State) {
 
   // PATCH /scene/:id - update scene properties
 
+  const SceneContentPatch = t.partial({
+    background_id: t.string,
+  });
+
   const ScenePatch = t.partial({
     text: t.string,
     outgoing_url: t.string,
     place: ScenePlace,
+    content: SceneContentPatch,
   });
 
   type ScenePatchT = t.TypeOf<typeof ScenePatch>;
@@ -553,6 +558,9 @@ export function initializeSceneEndpoints(state: State) {
 
         let allowed = true;
         const canEdit = await isAllowed(state, req, scene, "edit");
+
+        // Depending on what changes, we might need to update the preview.
+        let update_preview = false;
 
         // For convenience, this value should be pre-filled with whatever
         // operations we might use below. We have to hack around the typing
@@ -604,6 +612,26 @@ export function initializeSceneEndpoints(state: State) {
           }
 
           (operation as any)["$set"]["place"] = input.place;
+          update_preview = true;
+        }
+
+        if (input.content) {
+          if (input.content.background_id) {
+            allowed = allowed && canEdit;
+
+            // Validate.
+
+            const image = await state.images.findOne({ "_id": new ObjectId(input.content.background_id) });
+
+            if (image === null) {
+              res.statusCode = 400;
+              res.json({ error: true, message: "Invalid input `content.background_id`: not an image ID" });
+              return;
+            }
+
+            (operation as any)["$set"]["content.background_id"] = input.content.background_id;
+            update_preview = true;
+          }
         }
 
         // How did we do?
@@ -619,7 +647,9 @@ export function initializeSceneEndpoints(state: State) {
           operation
         );
 
-        requestPreviewCreation(state, req.params.id);
+        if (update_preview) {
+          requestPreviewCreation(state, req.params.id);
+        }
 
         res.json({
           error: false,
