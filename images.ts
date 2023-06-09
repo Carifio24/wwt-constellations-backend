@@ -118,6 +118,15 @@ export async function imageToJson(image: WithId<MongoImage>, state: State): Prom
   return output;
 }
 
+export function imageToDisplayJson(image: WithId<MongoImage>): Record<string, any> {
+  return {
+    id: image._id,
+    wwt: image.wwt,
+    permissions: image.permissions,
+    storage: image.storage,
+  };
+}
+
 export function imageToImageset(image: MongoImage, root: XMLBuilder): XMLBuilder {
   const iset = root.ele("ImageSet");
 
@@ -276,6 +285,36 @@ export function initializeImageEndpoints(state: State) {
         // specific than callers will generally want.
         const items = await state.images.find(
           { "storage.legacy_url_template": { $eq: input.wwt_legacy_url } },
+        ).project(
+          { "_id": 1, "handle_id": 1, "creation_date": 1, "note": 1, "storage": 1 }
+        ).toArray();
+
+        res.json({
+          error: false,
+          results: items,
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // GET /images/builtin-backgrounds - get the list of built-in backgrounds
+
+  state.app.get(
+    "/images/builtin-backgrounds",
+    async (req: JwtRequest, res: Response) => {
+      // No authentication required.
+
+      // No inputs.
+
+      try {
+        const items = await state.images.find(
+          { builtin_background_sort_key: { $gte: 0 } },
+        ).sort(
+          { builtin_background_sort_key: 1 }
         ).project(
           { "_id": 1, "handle_id": 1, "creation_date": 1, "note": 1, "storage": 1 }
         ).toArray();

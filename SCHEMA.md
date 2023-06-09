@@ -56,9 +56,10 @@ Each document in the `images` collection may have the following fields:
   - `credits` (optional string): An HTML string describing image credits; HTML to allow
     for e.g. hyperlinks. Sanitized to prevent XSS.
   - `license` (string): A valid SPDX expression describing the image license
-- `is_builtin_background` (boolean): if true, the image is one of the built-in
-  options suitable for use as wide-area backgrounds. This value is manually set
-  for a small number of special images.
+- `builtin_background_sort_key` (integer): if present and non-negative, the
+  image is one of the built-in options suitable for use as wide-area
+  backgrounds. The options are presented to the user sorted by increasing values
+  of this key. This value is manually set for a small number of special images.
 
 The following WWT parameters are currently assumed to be fixed at the following values:
 

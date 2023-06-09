@@ -20,7 +20,7 @@ import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { State } from "./globals";
 import { isAllowed as handleIsAllowed } from "./handles";
-import { imageToImageset } from "./images";
+import { imageToImageset, imageToDisplayJson } from "./images";
 import { IoObjectId, UnitInterval } from "./util";
 import { addImpression, addLike, removeLike } from "./session";
 import { Session } from "express-session";
@@ -151,14 +151,14 @@ export async function sceneToPlace(scene: MongoScene, desc: string, root: XMLBui
 
 export function requestPreviewCreation(state: State, sceneID: string | ObjectId) {
   axios.post(`${state.config.previewerUrl}/create-preview/${sceneID}`)
-  .then(response => {
-    // Note that a 200 OK response does NOT mean that the preview completed successfully,
-    // just that the previewer successfully received our job request
-    if (response.status !== 200) {
-      console.error(`Previewer returned error for scene ${sceneID}`);
-    }
-  })
-  .catch(error => console.error(error));
+    .then(response => {
+      // Note that a 200 OK response does NOT mean that the preview completed successfully,
+      // just that the previewer successfully received our job request
+      if (response.status !== 200) {
+        console.error(`Previewer returned error for scene ${sceneID}`);
+      }
+    })
+    .catch(error => console.error(error));
 }
 
 export async function sceneToJson(scene: WithId<MongoScene>, state: State, session: Session): Promise<Record<string, any>> {
@@ -202,14 +202,8 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
         throw new Error(`Database consistency failure, scene ${scene._id} missing image ${layer_desc.image_id}`);
       }
 
-      const image_info = {
-        wwt: image.wwt,
-        permissions: image.permissions,
-        storage: image.storage,
-      };
-
       image_layers.push({
-        image: image_info,
+        image: imageToDisplayJson(image),
         opacity: layer_desc.opacity,
       });
     }
@@ -233,11 +227,7 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
       throw new Error(`Database consistency failure, scene ${scene._id} missing background ${scene.content.background_id}`);
     }
 
-    output.content.background = {
-      wwt: bgImage.wwt,
-      permissions: bgImage.permissions,
-      storage: bgImage.storage,
-    };
+    output.content.background = imageToDisplayJson(bgImage);
   }
 
   // All done!
@@ -522,10 +512,15 @@ export function initializeSceneEndpoints(state: State) {
 
   // PATCH /scene/:id - update scene properties
 
+  const SceneContentPatch = t.partial({
+    background_id: t.string,
+  });
+
   const ScenePatch = t.partial({
     text: t.string,
     outgoing_url: t.string,
     place: ScenePlace,
+    content: SceneContentPatch,
   });
 
   type ScenePatchT = t.TypeOf<typeof ScenePatch>;
@@ -563,6 +558,9 @@ export function initializeSceneEndpoints(state: State) {
 
         let allowed = true;
         const canEdit = await isAllowed(state, req, scene, "edit");
+
+        // Depending on what changes, we might need to update the preview.
+        let update_preview = false;
 
         // For convenience, this value should be pre-filled with whatever
         // operations we might use below. We have to hack around the typing
@@ -614,6 +612,26 @@ export function initializeSceneEndpoints(state: State) {
           }
 
           (operation as any)["$set"]["place"] = input.place;
+          update_preview = true;
+        }
+
+        if (input.content) {
+          if (input.content.background_id) {
+            allowed = allowed && canEdit;
+
+            // Validate.
+
+            const image = await state.images.findOne({ "_id": new ObjectId(input.content.background_id) });
+
+            if (image === null) {
+              res.statusCode = 400;
+              res.json({ error: true, message: "Invalid input `content.background_id`: not an image ID" });
+              return;
+            }
+
+            (operation as any)["$set"]["content.background_id"] = input.content.background_id;
+            update_preview = true;
+          }
         }
 
         // How did we do?
@@ -629,7 +647,9 @@ export function initializeSceneEndpoints(state: State) {
           operation
         );
 
-        requestPreviewCreation(state, req.params.id);
+        if (update_preview) {
+          requestPreviewCreation(state, req.params.id);
+        }
 
         res.json({
           error: false,
