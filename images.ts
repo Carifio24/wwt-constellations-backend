@@ -292,6 +292,36 @@ export function initializeImageEndpoints(state: State) {
     }
   );
 
+  // GET /images/builtin-backgrounds - get the list of built-in backgrounds
+
+  state.app.get(
+    "/images/builtin-backgrounds",
+    async (req: JwtRequest, res: Response) => {
+      // No authentication required.
+
+      // No inputs.
+
+      try {
+        const items = await state.images.find(
+          { builtin_background_sort_key: { $gte: 0 } },
+        ).sort(
+          { builtin_background_sort_key: 1 }
+        ).project(
+          { "_id": 1, "handle_id": 1, "creation_date": 1, "note": 1, "storage": 1 }
+        ).toArray();
+
+        res.json({
+          error: false,
+          results: items,
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
   // GET /image/:id - information about an image
 
   state.app.get(
