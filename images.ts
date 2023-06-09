@@ -118,6 +118,15 @@ export async function imageToJson(image: WithId<MongoImage>, state: State): Prom
   return output;
 }
 
+export function imageToDisplayJson(image: WithId<MongoImage>): Record<string, any> {
+  return {
+    id: image._id,
+    wwt: image.wwt,
+    permissions: image.permissions,
+    storage: image.storage,
+  };
+}
+
 export function imageToImageset(image: MongoImage, root: XMLBuilder): XMLBuilder {
   const iset = root.ele("ImageSet");
 

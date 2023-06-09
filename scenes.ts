@@ -20,7 +20,7 @@ import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { State } from "./globals";
 import { isAllowed as handleIsAllowed } from "./handles";
-import { imageToImageset } from "./images";
+import { imageToImageset, imageToDisplayJson } from "./images";
 import { IoObjectId, UnitInterval } from "./util";
 import { addImpression, addLike, removeLike } from "./session";
 import { Session } from "express-session";
@@ -151,14 +151,14 @@ export async function sceneToPlace(scene: MongoScene, desc: string, root: XMLBui
 
 export function requestPreviewCreation(state: State, sceneID: string | ObjectId) {
   axios.post(`${state.config.previewerUrl}/create-preview/${sceneID}`)
-  .then(response => {
-    // Note that a 200 OK response does NOT mean that the preview completed successfully,
-    // just that the previewer successfully received our job request
-    if (response.status !== 200) {
-      console.error(`Previewer returned error for scene ${sceneID}`);
-    }
-  })
-  .catch(error => console.error(error));
+    .then(response => {
+      // Note that a 200 OK response does NOT mean that the preview completed successfully,
+      // just that the previewer successfully received our job request
+      if (response.status !== 200) {
+        console.error(`Previewer returned error for scene ${sceneID}`);
+      }
+    })
+    .catch(error => console.error(error));
 }
 
 export async function sceneToJson(scene: WithId<MongoScene>, state: State, session: Session): Promise<Record<string, any>> {
@@ -202,14 +202,8 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
         throw new Error(`Database consistency failure, scene ${scene._id} missing image ${layer_desc.image_id}`);
       }
 
-      const image_info = {
-        wwt: image.wwt,
-        permissions: image.permissions,
-        storage: image.storage,
-      };
-
       image_layers.push({
-        image: image_info,
+        image: imageToDisplayJson(image),
         opacity: layer_desc.opacity,
       });
     }
@@ -233,11 +227,7 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
       throw new Error(`Database consistency failure, scene ${scene._id} missing background ${scene.content.background_id}`);
     }
 
-    output.content.background = {
-      wwt: bgImage.wwt,
-      permissions: bgImage.permissions,
-      storage: bgImage.storage,
-    };
+    output.content.background = imageToDisplayJson(bgImage);
   }
 
   // All done!
