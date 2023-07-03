@@ -6,6 +6,7 @@ The Constellations database on the backing MongoDB server is called
 - `handles`
 - `images`
 - `scenes`
+- `events`
 
 
 ## The `handles` collection
@@ -51,6 +52,8 @@ Each document in the `images` collection may have the following fields:
   - Other mechanisms will be added for data uploaded directly to Constellations
 - `note` (string): a short freeform description of the image; currently intended
   only to be shown to its owning user(s).
+- `alt_text` (string): a textual description of the image intended for visually
+  impaired users. Free-form plain text.
 - `permissions`: information about image permissions (license, credits, etc.)
   - `copyright` (string): A string describing the image's copyright statement
   - `credits` (optional string): An HTML string describing image credits; HTML to allow
@@ -73,7 +76,6 @@ The following WWT parameters are currently assumed to be fixed at the following 
 
 To-do:
 
-- Credits information
 - Other storage mechanisms
 
 
@@ -94,6 +96,7 @@ Each document in the `scenes` collection may have the following fields:
     on the aspect ratio of the user's viewport.
 - `impressions` (number) the number of impressions this scene has
 - `likes` (number) the number of likes this scene has
+- `clicks` (number) the number of clicks to a scene's `outgoing_url` in the frontend
 - `text` (string) The human-readable text associated with the scene
 - `outgoing_url` (optional string) a URL that viewers of the scene should be
   encouraged to click
@@ -101,8 +104,13 @@ Each document in the `scenes` collection may have the following fields:
   - `image_layers`: optional array of ImageLayer records (see below).
   - `background_id`: (optional ObjectID) The ObjectID of the scene's background image
 - `previews`: information about different preview types
-  - `video`: (optional string) The basename of the video preview in its blob container, if one exists
-  - `thumbnail`: (optional string) The basename of the preview thumbnail image in the blob container, if one exists
+  - `video`: (optional string) The basename of the video preview in its blob
+    container, if one exists
+  - `thumbnail`: (optional string) The basename of the preview thumbnail image
+    in the blob container, if one exists
+- `home_timeline_sort_key` (integer): if present and non-negative, the scene is
+  included in the global home timeline, with its position set by the ordering of
+  these values.
 
 An ImageLayer record may have the following fields:
 
@@ -111,7 +119,27 @@ An ImageLayer record may have the following fields:
 
 To-do:
 
-- Specify background map
 - "Publication date" or other mechanism to not immediately publish
-- Credits information (or are credits attached to images sufficient?)
 - Clarify semantics of the "text" item
+
+
+## The `events` collection
+
+Each document in the `events` collection may have the following fields:
+
+- `kind`: the kind of event
+- `sid`: the frontend session ID associated with the event
+- `date`: the ISODate of this event
+
+If `kind` is `"click"`:
+
+- `scene_id`: the ObjectId of the scene that was clicked
+
+If `kind` is `"impression"`:
+
+- `scene_id`: the ObjectId of the scene that had an impression
+
+If `kind` is `"like"`:
+
+- `scene_id`: the ObjectId of the scene that was liked
+- `delta` (number): either +1 (indicating a like) or -1 (indicating an un-like)

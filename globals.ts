@@ -1,10 +1,11 @@
 import { Express } from "express";
 import dotenv from "dotenv";
-import { Collection, Document } from "mongodb";
+import { Collection } from "mongodb";
 
 import { MongoHandle } from "./handles";
 import { MongoImage } from "./images";
 import { MongoScene } from "./scenes";
+import { MongoEvent } from "./events";
 
 export class Config {
   // The port number on which the server will listen.
@@ -78,6 +79,7 @@ export class State {
   scenes: Collection<MongoScene>;
   images: Collection<MongoImage>;
   handles: Collection<MongoHandle>;
+  events: Collection<MongoEvent>;
 
   constructor(
     config: Config,
@@ -85,11 +87,13 @@ export class State {
     scenes: Collection<MongoScene>,
     images: Collection<MongoImage>,
     handles: Collection<MongoHandle>,
+    events: Collection<MongoEvent>,
   ) {
     this.config = config;
     this.app = app;
     this.scenes = scenes;
     this.images = images;
     this.handles = handles;
+    this.events = events;
   }
 }

@@ -25,6 +25,7 @@ export interface MongoImage {
   wwt: ImageWwtT;
   storage: ImageStorageT;
   note: string;
+  alt_text?: string;
   permissions: ImagePermissionsT;
 }
 
@@ -115,16 +116,26 @@ export async function imageToJson(image: WithId<MongoImage>, state: State): Prom
     note: image.note,
   };
 
+  if (image.alt_text !== undefined) {
+    output.alt_text = image.alt_text;
+  }
+
   return output;
 }
 
 export function imageToDisplayJson(image: WithId<MongoImage>): Record<string, any> {
-  return {
+  const output: Record<string, any> = {
     id: image._id,
     wwt: image.wwt,
     permissions: image.permissions,
     storage: image.storage,
   };
+
+  if (image.alt_text !== undefined) {
+    output.alt_text = image.alt_text;
+  }
+
+  return output;
 }
 
 export function imageToImageset(image: MongoImage, root: XMLBuilder): XMLBuilder {
@@ -177,12 +188,17 @@ export function initializeImageEndpoints(state: State) {
   // POST /handle/:handle/image: post a new image record (data have already
   // been processed and uploaded)
 
-  const ImageCreation = t.type({
-    wwt: ImageWwt,
-    storage: ImageStorage,
-    note: t.string,
-    permissions: ImagePermissions,
-  });
+  const ImageCreation = t.intersection([
+    t.type({
+      wwt: ImageWwt,
+      storage: ImageStorage,
+      note: t.string,
+      permissions: ImagePermissions,
+    }),
+    t.partial({
+      alt_text: t.string,
+    })
+  ]);
 
   type ImageCreationT = t.TypeOf<typeof ImageCreation>;
 
@@ -221,7 +237,7 @@ export function initializeImageEndpoints(state: State) {
 
       // OK, looks good.
 
-      const new_rec = {
+      const new_rec: MongoImage = {
         handle_id: handle._id,
         creation_date: new Date(),
         wwt: input.wwt,
@@ -229,6 +245,10 @@ export function initializeImageEndpoints(state: State) {
         note: input.note,
         permissions: input.permissions,
       };
+
+      if (input.alt_text !== undefined) {
+        new_rec.alt_text = input.alt_text;
+      }
 
       try {
         const result = await state.images.insertOne(new_rec);
@@ -435,6 +455,7 @@ export function initializeImageEndpoints(state: State) {
 
   const ImagePatch = t.partial({
     note: t.string,
+    alt_text: t.string,
     permissions: ImagePermissions,
   });
 
@@ -491,6 +512,18 @@ export function initializeImageEndpoints(state: State) {
           }
 
           (operation as any)["$set"]["note"] = input.note;
+        }
+
+        if (input.alt_text) {
+          allowed = allowed && canEdit;
+
+          if (input.alt_text.length > 5000) {
+            res.statusCode = 400;
+            res.json({ error: true, message: "Invalid input `alt_text`: too long" });
+            return;
+          }
+
+          (operation as any)["$set"]["alt_text"] = input.alt_text;
         }
 
         if (input.permissions) {

@@ -24,13 +24,14 @@ export function isValidImpression(session: Session, id: string): boolean {
 }
 
 // Add an impression to the session
-export function addImpression(session: Session, id: string): boolean {
+export function tryAddImpressionToSession(session: Session, id: string): boolean {
     const now = Date.now();
 
     if (isValidImpression(session, id)) {
         if (!session.impressions) {
             session.impressions = [];
         }
+
         const sceneImpression = session?.impressions?.find(x => x.scene_id == id);
         if (sceneImpression) {
             sceneImpression.last = now;
@@ -50,7 +51,7 @@ export function isValidLike(session: Session, id: string) {
 }
 
 // Add a like to the session
-export function addLike(session: Session, id: string): boolean {
+export function tryAddLikeToSession(session: Session, id: string): boolean {
     if (isValidLike(session, id)) {
         if (!session.likes) {
             session.likes = [];
@@ -69,7 +70,7 @@ export function isValidRemoveLike(session: Session, id: string) {
 }
 
 // Remove a like from the session
-export function removeLike(session: Session, id: string): boolean {
+export function tryRemoveLikeFromSession(session: Session, id: string): boolean {
     if (isValidRemoveLike(session, id)) {
         session.likes = session.likes.filter(l => l.scene_id != id);
         return true;

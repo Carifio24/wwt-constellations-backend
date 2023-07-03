@@ -18,11 +18,12 @@ import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
+import { logClickEvent, logImpressionEvent, logLikeEvent } from "./events";
 import { State } from "./globals";
 import { isAllowed as handleIsAllowed } from "./handles";
 import { imageToImageset, imageToDisplayJson } from "./images";
 import { IoObjectId, UnitInterval } from "./util";
-import { addImpression, addLike, removeLike } from "./session";
+import { tryAddImpressionToSession, tryAddLikeToSession, tryRemoveLikeFromSession } from "./session";
 import { Session } from "express-session";
 
 const R2D = 180.0 / Math.PI;
@@ -33,12 +34,15 @@ export interface MongoScene {
   creation_date: Date;
   impressions: number;
   likes: number;
+  clicks: number;
 
   place: ScenePlaceT;
   content: SceneContentT;
   previews: ScenePreviewsT;
   outgoing_url?: string;
   text: string;
+
+  home_timeline_sort_key?: number;
 }
 
 const ScenePlace = t.type({
@@ -301,6 +305,11 @@ export function initializeSceneEndpoints(state: State) {
         return;
       }
 
+      // TODO: figure out how we'll handle this! Current approach ought to
+      // cause new scenes to show up at the top of the timeline right away.
+
+      const home_timeline_sort_key = -Date.now();
+
       // OK, looks good.
 
       const new_rec: MongoScene = {
@@ -308,10 +317,12 @@ export function initializeSceneEndpoints(state: State) {
         creation_date: new Date(),
         impressions: 0,
         likes: 0,
+        clicks: 0,
         place: input.place,
         content: input.content,
         text: input.text,
-        previews: {}
+        previews: {},
+        home_timeline_sort_key
       };
 
       if (input.outgoing_url) {
@@ -438,15 +449,43 @@ export function initializeSceneEndpoints(state: State) {
     }
   );
 
+  // GET /scene/:id/click - register a click on a scene's outgoing link
+  //
+  // The response is a redirect to the outgoing link, so that we can
+  // transparently send the user on their way.
+  state.app.get(
+    "/scene/:id/click",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+
+        if (scene === null || scene.outgoing_url === undefined) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        await logClickEvent(state, req, scene._id);
+        res.redirect(302, scene.outgoing_url);
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
   // POST /scene/:id/impressions - record an impression of a scene.
   state.app.post("/scene/:id/impressions", async (req: JwtRequest, res: Response) => {
     try {
       const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
       if (scene) {
         let success: boolean;
-        if (success = addImpression(req.session, req.params.id)) {
-          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, { $inc: { impressions: 1 } })
+
+        if (success = tryAddImpressionToSession(req.session, req.params.id)) {
+          await logImpressionEvent(state, req, scene._id);
         };
+
         res.statusCode = 200;
         res.json({ error: false, id: req.params.id, success: success });
       } else {
@@ -468,9 +507,11 @@ export function initializeSceneEndpoints(state: State) {
       const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
       if (scene) {
         let success: boolean;
-        if (success = addLike(req.session, req.params.id)) {
-          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, { $inc: { likes: 1 } })
+
+        if (success = tryAddLikeToSession(req.session, req.params.id)) {
+          await logLikeEvent(state, req, scene._id, 1);
         };
+
         res.statusCode = 200;
         res.json({ error: false, id: req.params.id, success: success });
       } else {
@@ -492,9 +533,11 @@ export function initializeSceneEndpoints(state: State) {
       const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
       if (scene) {
         let success: boolean;
-        if (success = removeLike(req.session, req.params.id)) {
-          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, { $inc: { likes: -1 } })
+
+        if (success = tryRemoveLikeFromSession(req.session, req.params.id)) {
+          await logLikeEvent(state, req, scene._id, -1);
         };
+
         res.statusCode = 200;
         res.json({ error: false, id: req.params.id, success: success });
       } else {
@@ -663,11 +706,6 @@ export function initializeSceneEndpoints(state: State) {
   );
 
   // GET /scenes/home-timeline?page=$int - get scenes for the homepage timeline
-  //
-  // For now, there is a global timeline that is sorted on a nonsensical key
-  // (the `text`) for testing. We could add personalized timelines and/or apply
-  // a sort based on an intentional decision -- add a `timelineOrder` key and
-  // update it when we want.
 
   const page_size = 8;
 
@@ -689,7 +727,7 @@ export function initializeSceneEndpoints(state: State) {
         }
 
         const docs = await state.scenes.find()
-          .sort({ creation_date: 1 })
+          .sort({ home_timeline_sort_key: 1 })
           .skip(page_num * page_size)
           .limit(page_size)
           .toArray();
