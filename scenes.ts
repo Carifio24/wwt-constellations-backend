@@ -18,6 +18,7 @@ import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
+import { logClickEvent } from "./events";
 import { State } from "./globals";
 import { isAllowed as handleIsAllowed } from "./handles";
 import { imageToImageset, imageToDisplayJson } from "./images";
@@ -33,6 +34,7 @@ export interface MongoScene {
   creation_date: Date;
   impressions: number;
   likes: number;
+  clicks: number;
 
   place: ScenePlaceT;
   content: SceneContentT;
@@ -308,6 +310,7 @@ export function initializeSceneEndpoints(state: State) {
         creation_date: new Date(),
         impressions: 0,
         likes: 0,
+        clicks: 0,
         place: input.place,
         content: input.content,
         text: input.text,
@@ -430,6 +433,32 @@ export function initializeSceneEndpoints(state: State) {
         root.end({ prettyPrint: true });
         res.type("application/xml")
         res.send(root.toString());
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // GET /scene/:id/click - register a click on a scene's outgoing link
+  //
+  // The response is a redirect to the outgoing link, so that we can
+  // transparently send the user on their way.
+  state.app.get(
+    "/scene/:id/click",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+
+        if (scene === null || scene.outgoing_url === undefined) {
+          res.statusCode = 404;
+          res.json({ error: true, message: "Not found" });
+          return;
+        }
+
+        await logClickEvent(state, req, scene._id);
+        res.redirect(302, scene.outgoing_url);
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;

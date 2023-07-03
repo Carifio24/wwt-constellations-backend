@@ -88,7 +88,8 @@ const state = new State(
   app,
   database.collection("scenes"),
   database.collection("images"),
-  database.collection("handles")
+  database.collection("handles"),
+  database.collection("events"),
 );
 
 state.app.get("/", (_req: Request, res: Response) => {

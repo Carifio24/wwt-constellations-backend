@@ -61,6 +61,7 @@ export function initializeSuperuserEndpoints(state: State) {
         await state.images.createIndex({ "creation_date": -1 });
         await state.images.createIndex({ "builtin_background_sort_key": 1 });
         await state.scenes.createIndex({ "creation_date": 1 });
+        await state.events.createIndex({ "date": 1 });
 
         res.json({ error: false });
       } catch (err) {

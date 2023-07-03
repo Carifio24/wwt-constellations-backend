@@ -6,6 +6,7 @@ The Constellations database on the backing MongoDB server is called
 - `handles`
 - `images`
 - `scenes`
+- `events`
 
 
 ## The `handles` collection
@@ -73,7 +74,6 @@ The following WWT parameters are currently assumed to be fixed at the following 
 
 To-do:
 
-- Credits information
 - Other storage mechanisms
 
 
@@ -94,6 +94,7 @@ Each document in the `scenes` collection may have the following fields:
     on the aspect ratio of the user's viewport.
 - `impressions` (number) the number of impressions this scene has
 - `likes` (number) the number of likes this scene has
+- `clicks` (number) the number of clicks to a scene's `outgoing_url` in the frontend
 - `text` (string) The human-readable text associated with the scene
 - `outgoing_url` (optional string) a URL that viewers of the scene should be
   encouraged to click
@@ -111,7 +112,18 @@ An ImageLayer record may have the following fields:
 
 To-do:
 
-- Specify background map
 - "Publication date" or other mechanism to not immediately publish
-- Credits information (or are credits attached to images sufficient?)
 - Clarify semantics of the "text" item
+
+
+## The `events` collection
+
+Each document in the `events` collection may have the following fields:
+
+- `kind`: the kind of event
+- `sid`: the frontend session ID associated with the event
+- `date`: the ISODate of this event
+
+If `kind` is "click":
+
+- `scene_id`: the ObjectId of the scene that was clicked
