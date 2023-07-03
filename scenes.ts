@@ -18,12 +18,12 @@ import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
-import { logClickEvent } from "./events";
+import { logClickEvent, logImpressionEvent, logLikeEvent } from "./events";
 import { State } from "./globals";
 import { isAllowed as handleIsAllowed } from "./handles";
 import { imageToImageset, imageToDisplayJson } from "./images";
 import { IoObjectId, UnitInterval } from "./util";
-import { addImpression, addLike, removeLike } from "./session";
+import { tryAddImpressionToSession, tryAddLikeToSession, tryRemoveLikeFromSession } from "./session";
 import { Session } from "express-session";
 
 const R2D = 180.0 / Math.PI;
@@ -473,9 +473,11 @@ export function initializeSceneEndpoints(state: State) {
       const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
       if (scene) {
         let success: boolean;
-        if (success = addImpression(req.session, req.params.id)) {
-          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, { $inc: { impressions: 1 } })
+
+        if (success = tryAddImpressionToSession(req.session, req.params.id)) {
+          await logImpressionEvent(state, req, scene._id);
         };
+
         res.statusCode = 200;
         res.json({ error: false, id: req.params.id, success: success });
       } else {
@@ -497,9 +499,11 @@ export function initializeSceneEndpoints(state: State) {
       const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
       if (scene) {
         let success: boolean;
-        if (success = addLike(req.session, req.params.id)) {
-          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, { $inc: { likes: 1 } })
+
+        if (success = tryAddLikeToSession(req.session, req.params.id)) {
+          await logLikeEvent(state, req, scene._id, 1);
         };
+
         res.statusCode = 200;
         res.json({ error: false, id: req.params.id, success: success });
       } else {
@@ -521,9 +525,11 @@ export function initializeSceneEndpoints(state: State) {
       const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
       if (scene) {
         let success: boolean;
-        if (success = removeLike(req.session, req.params.id)) {
-          state.scenes.findOneAndUpdate({ "_id": new ObjectId(req.params.id) }, { $inc: { likes: -1 } })
+
+        if (success = tryRemoveLikeFromSession(req.session, req.params.id)) {
+          await logLikeEvent(state, req, scene._id, -1);
         };
+
         res.statusCode = 200;
         res.json({ error: false, id: req.params.id, success: success });
       } else {

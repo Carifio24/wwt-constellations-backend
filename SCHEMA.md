@@ -124,6 +124,15 @@ Each document in the `events` collection may have the following fields:
 - `sid`: the frontend session ID associated with the event
 - `date`: the ISODate of this event
 
-If `kind` is "click":
+If `kind` is `"click"`:
 
 - `scene_id`: the ObjectId of the scene that was clicked
+
+If `kind` is `"impression"`:
+
+- `scene_id`: the ObjectId of the scene that had an impression
+
+If `kind` is `"like"`:
+
+- `scene_id`: the ObjectId of the scene that was liked
+- `delta` (number): either +1 (indicating a like) or -1 (indicating an un-like)
