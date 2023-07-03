@@ -52,6 +52,8 @@ Each document in the `images` collection may have the following fields:
   - Other mechanisms will be added for data uploaded directly to Constellations
 - `note` (string): a short freeform description of the image; currently intended
   only to be shown to its owning user(s).
+- `alt_text` (string): a textual description of the image intended for visually
+  impaired users. Free-form plain text.
 - `permissions`: information about image permissions (license, credits, etc.)
   - `copyright` (string): A string describing the image's copyright statement
   - `credits` (optional string): An HTML string describing image credits; HTML to allow
