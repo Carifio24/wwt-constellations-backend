@@ -104,8 +104,13 @@ Each document in the `scenes` collection may have the following fields:
   - `image_layers`: optional array of ImageLayer records (see below).
   - `background_id`: (optional ObjectID) The ObjectID of the scene's background image
 - `previews`: information about different preview types
-  - `video`: (optional string) The basename of the video preview in its blob container, if one exists
-  - `thumbnail`: (optional string) The basename of the preview thumbnail image in the blob container, if one exists
+  - `video`: (optional string) The basename of the video preview in its blob
+    container, if one exists
+  - `thumbnail`: (optional string) The basename of the preview thumbnail image
+    in the blob container, if one exists
+- `home_timeline_sort_key` (integer): if present and non-negative, the scene is
+  included in the global home timeline, with its position set by the ordering of
+  these values.
 
 An ImageLayer record may have the following fields:
 

@@ -41,6 +41,8 @@ export interface MongoScene {
   previews: ScenePreviewsT;
   outgoing_url?: string;
   text: string;
+
+  home_timeline_sort_key?: number;
 }
 
 const ScenePlace = t.type({
@@ -303,6 +305,11 @@ export function initializeSceneEndpoints(state: State) {
         return;
       }
 
+      // TODO: figure out how we'll handle this! Current approach ought to
+      // cause new scenes to show up at the top of the timeline right away.
+
+      const home_timeline_sort_key = -Date.now();
+
       // OK, looks good.
 
       const new_rec: MongoScene = {
@@ -314,7 +321,8 @@ export function initializeSceneEndpoints(state: State) {
         place: input.place,
         content: input.content,
         text: input.text,
-        previews: {}
+        previews: {},
+        home_timeline_sort_key
       };
 
       if (input.outgoing_url) {
@@ -698,11 +706,6 @@ export function initializeSceneEndpoints(state: State) {
   );
 
   // GET /scenes/home-timeline?page=$int - get scenes for the homepage timeline
-  //
-  // For now, there is a global timeline that is sorted on a nonsensical key
-  // (the `text`) for testing. We could add personalized timelines and/or apply
-  // a sort based on an intentional decision -- add a `timelineOrder` key and
-  // update it when we want.
 
   const page_size = 8;
 
@@ -724,7 +727,7 @@ export function initializeSceneEndpoints(state: State) {
         }
 
         const docs = await state.scenes.find()
-          .sort({ creation_date: 1 })
+          .sort({ home_timeline_sort_key: 1 })
           .skip(page_num * page_size)
           .limit(page_size)
           .toArray();

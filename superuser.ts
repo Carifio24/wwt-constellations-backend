@@ -61,6 +61,7 @@ export function initializeSuperuserEndpoints(state: State) {
         await state.images.createIndex({ "creation_date": -1 });
         await state.images.createIndex({ "builtin_background_sort_key": 1 });
         await state.scenes.createIndex({ "creation_date": 1 });
+        await state.scenes.createIndex({ "home_timeline_sort_key": 1 });
         await state.events.createIndex({ "date": 1 });
 
         res.json({ error: false });
@@ -162,6 +163,25 @@ export function initializeSuperuserEndpoints(state: State) {
         ).then((_result) => {
           res.json({ error: false });
         });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // POST /misc/shuffle-home-timeline - randomize the home timeline
+  state.app.post(
+    "/misc/shuffle-home-timeline",
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      try {
+        await state.scenes.updateMany(
+          {},
+          [{ $set: { home_timeline_sort_key: { $rand: {} } } }]
+        );
+        res.json({ error: false });
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
         res.statusCode = 500;
