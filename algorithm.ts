@@ -4,7 +4,7 @@ import type { AnyBulkWriteOperation, WithId } from "mongodb";
 import { distance } from "@wwtelescope/astro";
 
 import { State } from "./globals";
-import { MongoScene, ScenePlaceT } from "./scenes";
+import { MongoScene } from "./scenes";
 
 const TIME_WEIGHT = 1;
 const POPULARITY_WEIGHT = 1;
@@ -158,7 +158,7 @@ function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId<MongoS
   }
 
   // Now we can take the handle and location into account
-  let next;
+  let next: WithId<MongoScene> | null | undefined = undefined;
   while ((next = nextScene(remainingScenes, feed, handles, firstN)) !== null) {
     feed.push(next);
   }
