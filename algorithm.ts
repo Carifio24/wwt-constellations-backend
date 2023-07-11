@@ -13,19 +13,19 @@ const VARIETY_WEIGHT = 1;
 
 export interface FeedSortingItem {
   scene: WithId<MongoScene>;
-  popularityFactor: number;
-  distanceFactor: number;
-  varietyFactor: number;
-  timeFactor: number;
+  popularityComponent: number;
+  distanceComponent: number;
+  varietyComponent: number;
+  timeComponent: number;
 }
 
 export type Feed = WithId<MongoScene>[];
 
 function score(item: FeedSortingItem): number {
-  return TIME_WEIGHT * item.timeFactor +
-    POPULARITY_WEIGHT * item.popularityFactor +
-    DISTANCE_WEIGHT * item.distanceFactor +
-    VARIETY_WEIGHT * item.varietyFactor;
+  return TIME_WEIGHT * item.timeComponent +
+    POPULARITY_WEIGHT * item.popularityComponent +
+    DISTANCE_WEIGHT * item.distanceComponent +
+    VARIETY_WEIGHT * item.varietyComponent;
 }
 
 
@@ -48,11 +48,11 @@ function sinExpWeight(x: number): number {
   return Math.sin(Math.exp(-Math.pow(x, 2)) * x);
 }
 
-function handleCountFactor(n: number): number {
+function handleCountComponent(n: number): number {
   return Math.exp(-n / 5);
 }
 
-function distanceFactor(d: number): number {
+function distanceComponent(d: number): number {
   return sinExpWeight(10 * d - 1);
 }
 
@@ -75,10 +75,10 @@ function nextScene(items: FeedSortingItem[], feed: Feed, handles: Record<string,
   const mostRecent = feed[feed.length - 1];
   items.forEach(item => {
     const handleCount = handles[item.scene.handle_id.toString()] || 0;
-    item.varietyFactor = handleCountFactor(handleCount);
+    item.varietyComponent = handleCountComponent(handleCount);
 
     const dist = distanceBetween(mostRecent, item.scene);
-    item.distanceFactor = distanceFactor(dist);
+    item.distanceComponent = distanceComponent(dist);
   });
   
   items.sort((a, b) => score(b) - score(a));
@@ -126,10 +126,10 @@ function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId<MongoS
   const remainingScenes: FeedSortingItem[] = scenes.map(scene => {
     return {
       scene,
-      popularityFactor: 0,
-      distanceFactor: 0,
-      varietyFactor: 0,
-      timeFactor: 0
+      popularityComponent: 0,
+      distanceComponent: 0,
+      varietyComponent: 0,
+      timeComponent: 0
     };
   });
 
@@ -139,14 +139,14 @@ function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId<MongoS
   const popularities = scenes.map(scene => popularity(scene));
   const maxPopularity = Math.max(...popularities);
   popularities.forEach((p, idx) => {
-    remainingScenes[idx].popularityFactor = p / maxPopularity;
+    remainingScenes[idx].popularityComponent = p / maxPopularity;
   });
 
   const times = scenes.map(scene => timeSinceCreation(scene));
   const secondsPerDay = 1000 * 60 * 60 * 24 * 7;
   const timeDecay = halfLogisticDecay(0.01, secondsPerDay); 
   times.forEach((t, idx) => {
-    remainingScenes[idx].timeFactor = timeDecay(t);
+    remainingScenes[idx].timeComponent = timeDecay(t);
   });
   remainingScenes.sort((a, b) => score(b) - score(a));
 
