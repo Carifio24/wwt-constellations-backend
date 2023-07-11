@@ -53,7 +53,7 @@ function handleCountComponent(n: number): number {
 }
 
 function distanceComponent(d: number): number {
-  return sinExpWeight(10 * d - 1);
+  return sinExpWeight((10 * d - 1) / 2);
 }
 
 function popularity(scene: MongoScene): number {
