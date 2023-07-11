@@ -53,7 +53,7 @@ const ScenePlace = t.type({
   roi_aspect_ratio: t.number,
 });
 
-type ScenePlaceT = t.TypeOf<typeof ScenePlace>;
+export type ScenePlaceT = t.TypeOf<typeof ScenePlace>;
 
 const ImageLayer = t.type({
   image_id: IoObjectId,
