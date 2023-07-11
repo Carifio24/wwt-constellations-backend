@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
+import type { AnyBulkWriteOperation, WithId } from "mongodb";
 import { distance } from "@wwtelescope/astro";
 
 import { State } from "./globals";
@@ -11,14 +12,14 @@ const DISTANCE_WEIGHT = 1;
 const VARIETY_WEIGHT = 1;
 
 export interface FeedSortingItem {
-  scene: MongoScene;
+  scene: WithId<MongoScene>;
   popularityFactor: number;
   distanceFactor: number;
   varietyFactor: number;
   timeFactor: number;
 }
 
-export type Feed = MongoScene[];
+export type Feed = WithId<MongoScene>[];
 
 function score(item: FeedSortingItem): number {
   return TIME_WEIGHT * item.timeFactor +
@@ -67,7 +68,7 @@ function distanceBetween(scene1: MongoScene, scene2: MongoScene): number {
   return distance(scene1.place.ra_rad, scene1.place.dec_rad, scene2.place.ra_rad, scene2.place.dec_rad);
 }
 
-function nextScene(items: FeedSortingItem[], feed: Feed, handles: Record<string, number>, firstN: number): MongoScene | null {
+function nextScene(items: FeedSortingItem[], feed: Feed, handles: Record<string, number>, firstN: number): WithId<MongoScene> | null {
   if (items.length === 0) {
     return null;
   }
@@ -110,7 +111,7 @@ function nextScene(items: FeedSortingItem[], feed: Feed, handles: Record<string,
   }
 }
 
-function constructFeed(scenes: MongoScene[], initialScene: MongoScene | null = null, firstN = 5): Feed {
+function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId<MongoScene> | null = null, firstN = 5): Feed {
   const haveInitialScene = initialScene !== null;
   const feed: Feed = haveInitialScene ? [initialScene] : [];
   const handles: Record<string, number> = {};
@@ -181,13 +182,22 @@ export function initializeAlgorithmEndpoints(state: State) {
       // making the request, we can just update the scene ordering
       const scenes = await state.scenes.find().toArray();
       const orderedFeed = constructFeed(scenes);
+      const operations: AnyBulkWriteOperation<MongoScene>[] = [];
       
       orderedFeed.forEach((scene, index) => {
         // The actual scoring value for each scene doesn't matter
         // All we need is the index that tells us the order
+        const operation: AnyBulkWriteOperation<MongoScene> = {
+          updateOne: {
+            filter: { _id: scene._id },
+            update: { $set: { home_timeline_sort_key: index } }
+          }
+        };
+        operations.push(operation);
       });
 
-    }
+      state.scenes.bulkWrite(operations);
 
+    });
 
 }
