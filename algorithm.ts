@@ -72,11 +72,13 @@ function nextScene(items: FeedSortingItem[], feed: Feed, handles: Record<string,
   if (items.length === 0) {
     return null;
   }
+
+  const mostRecent = feed[feed.length - 1];
   items.forEach(item => {
     const handleCount = handles[item.scene.handle_id.toString()] || 0;
     item.varietyComponent = handleCountComponent(handleCount);
 
-    const dist = distanceBetween(feed[0], item.scene);
+    const dist = distanceBetween(mostRecent, item.scene);
     item.distanceComponent = distanceComponent(dist);
   });
   
