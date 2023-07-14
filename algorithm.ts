@@ -1,6 +1,6 @@
 import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
-import type { AnyBulkWriteOperation, WithId } from "mongodb";
+import { AnyBulkWriteOperation, ObjectId, WithId } from "mongodb";
 import { distance } from "@wwtelescope/astro";
 
 import { State } from "./globals";
@@ -176,13 +176,28 @@ export function initializeAlgorithmEndpoints(state: State) {
       const allowed = req.auth && req.auth.sub === state.config.superuserAccountId;
 
       if (!allowed) {
+        res.statusCode = 403;
         res.json({ error: true, message: "Forbidden" });
+        return;
       }
+ 
+      const initialIDInput = req.query.initial_id;
+      let initialSceneID: ObjectId | null;
+      try {
+        initialSceneID = initialIDInput ? new ObjectId(initialIDInput as string) : null;
+      } catch (err) {
+        res.statusCode = 404;
+        res.json({ error: true, message: "invalid ID for initial scene" });
+        return;
+      }
+
+      const initialScene = initialSceneID ? 
+        await state.scenes.findOne({"_id": initialSceneID }) : null;
 
       // No input to parse - since we've verified that it's the superuser
       // making the request, we can just update the scene ordering
       const scenes = await state.scenes.find().toArray();
-      const orderedFeed = constructFeed(scenes);
+      const orderedFeed = constructFeed(scenes, initialScene);
       const operations: AnyBulkWriteOperation<MongoScene>[] = [];
       
       orderedFeed.forEach((scene, index) => {
