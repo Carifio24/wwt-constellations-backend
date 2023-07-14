@@ -10,8 +10,11 @@ import { Request as JwtRequest } from "express-jwt";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/PathReporter";
 import { isLeft } from "fp-ts/Either";
+import { AnyBulkWriteOperation, ObjectId } from "mongodb";
 
+import { constructFeed } from "./algorithm";
 import { State } from "./globals";
+import { MongoScene } from "./scenes";
 
 export function initializeSuperuserEndpoints(state: State) {
   const amISuperuser = (req: JwtRequest) => {
@@ -189,4 +192,44 @@ export function initializeSuperuserEndpoints(state: State) {
       }
     }
   );
+
+  state.app.post(
+    "/misc/update-timeline",
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+
+      const initialIDInput = req.query.initial_id;
+      let initialSceneID: ObjectId | null;
+      try {
+        initialSceneID = initialIDInput ? new ObjectId(initialIDInput as string) : null;
+      } catch (err) {
+        res.statusCode = 404;
+        res.json({ error: true, message: "invalid ID for initial scene" });
+        return;
+      }
+
+      const initialScene = initialSceneID ?
+        await state.scenes.findOne({"_id": initialSceneID }) : null;
+
+      // No input to parse - since we've verified that it's the superuser
+      // making the request, we can just update the scene ordering
+      const scenes = await state.scenes.find().toArray();
+      const orderedFeed = constructFeed(scenes, initialScene);
+      const operations: AnyBulkWriteOperation<MongoScene>[] = [];
+
+      orderedFeed.forEach((scene, index) => {
+        // The actual scoring value for each scene doesn't matter
+        // All we need is the index that tells us the order
+        const operation: AnyBulkWriteOperation<MongoScene> = {
+          updateOne: {
+            filter: { _id: scene._id },
+            update: { $set: { home_timeline_sort_key: index } }
+          }
+        };
+        operations.push(operation);
+      });
+
+      state.scenes.bulkWrite(operations);
+
+    });
 }

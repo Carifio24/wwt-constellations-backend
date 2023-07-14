@@ -1,9 +1,6 @@
-import { Response } from "express";
-import { Request as JwtRequest } from "express-jwt";
-import { AnyBulkWriteOperation, ObjectId, WithId } from "mongodb";
+import { WithId } from "mongodb";
 import { distance } from "@wwtelescope/astro";
 
-import { State } from "./globals";
 import { MongoScene } from "./scenes";
 
 const TIME_WEIGHT = 1;
@@ -112,7 +109,7 @@ function nextScene(items: FeedSortingItem[], feed: Feed, handles: Record<string,
   }
 }
 
-function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId<MongoScene> | null = null, firstN = 5): Feed {
+export function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId<MongoScene> | null = null, firstN = 5): Feed {
   const haveInitialScene = initialScene !== null;
   const feed: Feed = haveInitialScene ? [initialScene] : [];
   const handles: Record<string, number> = {};
@@ -167,53 +164,3 @@ function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId<MongoS
   return feed;
 }
 
-
-export function initializeAlgorithmEndpoints(state: State) {
-
-  state.app.post(
-    "/algorithm/update",
-    async (req: JwtRequest, res: Response) => {
-      const allowed = req.auth && req.auth.sub === state.config.superuserAccountId;
-
-      if (!allowed) {
-        res.statusCode = 403;
-        res.json({ error: true, message: "Forbidden" });
-        return;
-      }
- 
-      const initialIDInput = req.query.initial_id;
-      let initialSceneID: ObjectId | null;
-      try {
-        initialSceneID = initialIDInput ? new ObjectId(initialIDInput as string) : null;
-      } catch (err) {
-        res.statusCode = 404;
-        res.json({ error: true, message: "invalid ID for initial scene" });
-        return;
-      }
-
-      const initialScene = initialSceneID ? 
-        await state.scenes.findOne({"_id": initialSceneID }) : null;
-
-      // No input to parse - since we've verified that it's the superuser
-      // making the request, we can just update the scene ordering
-      const scenes = await state.scenes.find().toArray();
-      const orderedFeed = constructFeed(scenes, initialScene);
-      const operations: AnyBulkWriteOperation<MongoScene>[] = [];
-      
-      orderedFeed.forEach((scene, index) => {
-        // The actual scoring value for each scene doesn't matter
-        // All we need is the index that tells us the order
-        const operation: AnyBulkWriteOperation<MongoScene> = {
-          updateOne: {
-            filter: { _id: scene._id },
-            update: { $set: { home_timeline_sort_key: index } }
-          }
-        };
-        operations.push(operation);
-      });
-
-      state.scenes.bulkWrite(operations);
-
-    });
-
-}
