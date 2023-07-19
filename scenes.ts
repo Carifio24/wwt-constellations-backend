@@ -18,7 +18,7 @@ import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
-import { logClickEvent, logImpressionEvent, logLikeEvent } from "./events.js";
+import { logClickEvent, logImpressionEvent, logLikeEvent, logShareEvent } from "./events.js";
 import { State } from "./globals.js";
 import { isAllowed as handleIsAllowed } from "./handles.js";
 import { imageToImageset, imageToDisplayJson } from "./images.js";
@@ -511,6 +511,32 @@ export function initializeSceneEndpoints(state: State) {
         if (success = tryAddLikeToSession(req.session, req.params.id)) {
           await logLikeEvent(state, req, scene._id, 1);
         };
+
+        res.statusCode = 200;
+        res.json({ error: false, id: req.params.id, success: success });
+      } else {
+        console.error(`${req.method} ${req.path} scene does not exist`);
+        res.statusCode = 404;
+        res.json({ error: true, message: `scene ${req.params.id} does not exist` });
+      }
+    } catch (err) {
+      console.error(`${req.method} ${req.path} exception:`, err);
+      res.statusCode = 500;
+      res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+    }
+
+  });
+
+  // POST /scene/:id/shares/:type - record a share of a scene
+  state.app.post("/scene/:id/shares/:type", async (req: JwtRequest, res: Response) => {
+    try {
+      const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+      if (scene) {
+        let success: boolean;
+
+        if (success = tryAddShareToSession(req.session, req.params.id, req.params.type)) {
+          await logShareEvent(state, req, scene._id, req.params.type);
+        }
 
         res.statusCode = 200;
         res.json({ error: false, id: req.params.id, success: success });

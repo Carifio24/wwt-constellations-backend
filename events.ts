@@ -67,3 +67,22 @@ export async function logLikeEvent(state: State, req: JwtRequest, scene_id: Obje
   await state.events.insertOne(evt);
   await state.scenes.findOneAndUpdate({ "_id": scene_id }, { $inc: { likes: delta } })
 }
+
+export interface MongoShareEvent extends MongoEvent {
+  kind: "share";
+  scene_id: ObjectId;
+  type: string;
+}
+
+export async function logShareEvent(state: State, req: JwtRequest, scene_id: ObjectId, type: string) {
+  const evt: MongoShareEvent = {
+    kind: "share",
+    sid: req.session.id,
+    date: new Date(),
+    scene_id,
+    type
+  };
+
+  await state.events.insertOne(evt);
+  await state.scenes.findOneAndUpdate({ "_id": scene_id }, { $inc: { [`shares.${type}`]: 1 } });
+}
