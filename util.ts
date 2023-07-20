@@ -3,8 +3,8 @@
 // Miscellaneous utilities for the WWT Constellations backend server.
 
 import createDOMPurify from "dompurify";
-import * as e from "fp-ts/Either";
-import { pipe } from "fp-ts/function";
+import * as e from "fp-ts/lib/Either.js";
+import { pipe } from "fp-ts/lib/function.js";
 import * as t from "io-ts";
 import { JSDOM } from "jsdom";
 import { ObjectId } from "mongodb";
