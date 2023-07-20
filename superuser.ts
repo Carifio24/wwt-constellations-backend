@@ -197,7 +197,6 @@ export function initializeSuperuserEndpoints(state: State) {
     "/misc/update-timeline",
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
-
       const initialIDInput = req.query.initial_id;
       let initialSceneID: ObjectId | null;
       try {
@@ -230,6 +229,6 @@ export function initializeSuperuserEndpoints(state: State) {
       });
 
       state.scenes.bulkWrite(operations);
-
+      res.json({ error: false });
     });
 }
