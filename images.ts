@@ -8,16 +8,16 @@
 
 import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
-import { isLeft } from "fp-ts/Either";
+import { isLeft } from "fp-ts/lib/Either.js";
 import * as t from "io-ts";
-import { PathReporter } from "io-ts/PathReporter";
+import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
-import { State } from "./globals";
-import { isAllowed as handleIsAllowed } from "./handles";
-import { CleanHtml, SpdxExpression } from "./util";
+import { State } from "./globals.js";
+import { isAllowed as handleIsAllowed } from "./handles.js";
+import { CleanHtml, SpdxExpression } from "./util.js";
 
 export interface MongoImage {
   handle_id: ObjectId;

@@ -8,13 +8,13 @@
 
 import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
-import { isLeft } from "fp-ts/Either";
+import { isLeft } from "fp-ts/lib/Either.js";
 import * as t from "io-ts";
-import { PathReporter } from "io-ts/PathReporter";
+import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { UpdateFilter } from "mongodb";
 
-import { State } from "./globals";
-import { sceneToJson } from "./scenes";
+import { State } from "./globals.js";
+import { sceneToJson } from "./scenes.js";
 
 export interface MongoHandle {
   handle: string;

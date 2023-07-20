@@ -9,13 +9,13 @@ import cors from "cors";
 import { MongoClient } from "mongodb";
 import session from "express-session";
 
-import { Config, State } from "./globals";
-import { makeCheckAuthMiddleware } from "./auth";
-import { initializeHandleEndpoints } from "./handles";
-import { initializeImageEndpoints } from "./images";
-import { initializeSceneEndpoints } from "./scenes";
-import { initializeSuperuserEndpoints } from "./superuser";
-import { initializeSessionEndpoints } from "./session";
+import { Config, State } from "./globals.js";
+import { makeCheckAuthMiddleware } from "./auth.js";
+import { initializeHandleEndpoints } from "./handles.js";
+import { initializeImageEndpoints } from "./images.js";
+import { initializeSceneEndpoints } from "./scenes.js";
+import { initializeSuperuserEndpoints } from "./superuser.js";
+import { initializeSessionEndpoints } from "./session.js";
 
 const config = new Config();
 

@@ -10,20 +10,20 @@
 
 import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
-import { isLeft } from "fp-ts/Either";
+import { isLeft } from "fp-ts/lib/Either.js";
 import * as t from "io-ts";
 import axios from "axios";
-import { PathReporter } from "io-ts/PathReporter";
+import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
-import { logClickEvent, logImpressionEvent, logLikeEvent } from "./events";
-import { State } from "./globals";
-import { isAllowed as handleIsAllowed } from "./handles";
-import { imageToImageset, imageToDisplayJson } from "./images";
-import { IoObjectId, UnitInterval } from "./util";
-import { tryAddImpressionToSession, tryAddLikeToSession, tryRemoveLikeFromSession } from "./session";
+import { logClickEvent, logImpressionEvent, logLikeEvent } from "./events.js";
+import { State } from "./globals.js";
+import { isAllowed as handleIsAllowed } from "./handles.js";
+import { imageToImageset, imageToDisplayJson } from "./images.js";
+import { IoObjectId, UnitInterval } from "./util.js";
+import { tryAddImpressionToSession, tryAddLikeToSession, tryRemoveLikeFromSession } from "./session.js";
 import { Session } from "express-session";
 
 const R2D = 180.0 / Math.PI;

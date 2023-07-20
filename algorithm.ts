@@ -33,7 +33,7 @@ function logisticDecay(k: number, t0: number, a: number): (t: number) => number 
 
 /**
   * This is a two-parameter logistic decay where a has been chosen such that f(t0) = 1/2
-  * I don't know if there's a particular advantage to this, but it makes t0 have a 
+  * I don't know if there's a particular advantage to this, but it makes t0 have a
   * more readily apparent meaning
   */
 function halfLogisticDecay(k: number, t0: number): (t: number) => number {
@@ -78,7 +78,7 @@ function nextScene(items: FeedSortingItem[], feed: Feed, handles: Record<string,
     const dist = distanceBetween(mostRecent, item.scene);
     item.distanceComponent = distanceComponent(dist);
   });
-  
+
   items.sort((a, b) => score(b) - score(a));
 
   if (feed.length < firstN) {
@@ -131,7 +131,7 @@ export function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId
     };
   });
 
-  // Popularity and time since creation are properties of the item itself - 
+  // Popularity and time since creation are properties of the item itself -
   // that is, they don't depend at all on the other contents of the feed.
   // Thus we can compute those first, and only once.
   const popularities = scenes.map(scene => popularity(scene));
@@ -142,7 +142,7 @@ export function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId
 
   const times = scenes.map(scene => timeSinceCreation(scene));
   const secondsPerDay = 1000 * 60 * 60 * 24 * 7;
-  const timeDecay = halfLogisticDecay(0.01, secondsPerDay); 
+  const timeDecay = halfLogisticDecay(0.01, secondsPerDay);
   times.forEach((t, idx) => {
     remainingScenes[idx].timeComponent = timeDecay(t);
   });

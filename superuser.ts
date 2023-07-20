@@ -8,13 +8,13 @@
 import { NextFunction, Response, RequestHandler } from "express";
 import { Request as JwtRequest } from "express-jwt";
 import * as t from "io-ts";
-import { PathReporter } from "io-ts/PathReporter";
-import { isLeft } from "fp-ts/Either";
+import { PathReporter } from "io-ts/lib/PathReporter.js";
+import { isLeft } from "fp-ts/lib/Either.js";
 import { AnyBulkWriteOperation, ObjectId } from "mongodb";
 
-import { constructFeed } from "./algorithm";
-import { State } from "./globals";
-import { MongoScene } from "./scenes";
+import { constructFeed } from "./algorithm.js";
+import { State } from "./globals.js";
+import { MongoScene } from "./scenes.js";
 
 export function initializeSuperuserEndpoints(state: State) {
   const amISuperuser = (req: JwtRequest) => {
@@ -209,7 +209,7 @@ export function initializeSuperuserEndpoints(state: State) {
       }
 
       const initialScene = initialSceneID ?
-        await state.scenes.findOne({"_id": initialSceneID }) : null;
+        await state.scenes.findOne({ "_id": initialSceneID }) : null;
 
       // No input to parse - since we've verified that it's the superuser
       // making the request, we can just update the scene ordering
