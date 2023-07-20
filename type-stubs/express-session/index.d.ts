@@ -11,15 +11,9 @@ declare module "express-session" {
     scene_id: string,
   }
 
-  interface Shares {
-    scene_id: string;
-    type: string;
-  }
-
   interface Session {
     impressions: Impression[],
     likes: Likes[],
     created: number,
-    shares: Shares[],
   }
 }

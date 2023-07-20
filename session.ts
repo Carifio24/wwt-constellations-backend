@@ -79,18 +79,6 @@ export function tryRemoveLikeFromSession(session: Session, id: string): boolean 
     return false;
 }
 
-// Add a share for a session
-export function tryAddShareToSession(session: Session, id: string, type: string) {
-  if (isValidSession(session)) {
-    if (!session.shares) {
-      session.shares = [];
-    }
-    session.shares.push({ scene_id: id, type });
-    return true;
-  }
-  return false;
-}
-
 // POST /session/init - Initialize a session
 export function initializeSessionEndpoints(state: State) {
     state.app.post("/session/init", async (req: JwtRequest, res: Response) => {
