@@ -541,7 +541,7 @@ export function initializeSceneEndpoints(state: State) {
 
     const type = req.params.type;
     if (!isSceneShareType(type)) {
-      res.statusCode = 422;
+      res.statusCode = 400;
       res.json({ error: true, message: `${type} is not a valid scene sharing type` });
       return;
     }
