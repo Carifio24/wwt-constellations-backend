@@ -97,6 +97,7 @@ Each document in the `scenes` collection may have the following fields:
 - `impressions` (number) the number of impressions this scene has
 - `likes` (number) the number of likes this scene has
 - `clicks` (number) the number of clicks to a scene's `outgoing_url` in the frontend
+- `shares` (number) the number of times this scene has been shared
 - `text` (string) The human-readable text associated with the scene
 - `outgoing_url` (optional string) a URL that viewers of the scene should be
   encouraged to click

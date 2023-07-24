@@ -18,12 +18,12 @@ import { ObjectId, UpdateFilter, WithId } from "mongodb";
 import { create } from "xmlbuilder2";
 import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
-import { logClickEvent, logImpressionEvent, logLikeEvent } from "./events.js";
+import { logClickEvent, logImpressionEvent, logLikeEvent, logShareEvent } from "./events.js";
 import { State } from "./globals.js";
 import { isAllowed as handleIsAllowed } from "./handles.js";
 import { imageToImageset, imageToDisplayJson } from "./images.js";
 import { IoObjectId, UnitInterval } from "./util.js";
-import { tryAddImpressionToSession, tryAddLikeToSession, tryRemoveLikeFromSession } from "./session.js";
+import { isValidSession, tryAddImpressionToSession, tryAddLikeToSession, tryRemoveLikeFromSession } from "./session.js";
 import { Session } from "express-session";
 
 const R2D = 180.0 / Math.PI;
@@ -35,6 +35,7 @@ export interface MongoScene {
   impressions: number;
   likes: number;
   clicks: number;
+  shares: number;
 
   place: ScenePlaceT;
   content: SceneContentT;
@@ -77,6 +78,13 @@ const ScenePreviews = t.partial({
 });
 
 type ScenePreviewsT = t.TypeOf<typeof ScenePreviews>;
+
+const sceneShareTypes = ["facebook", "linkedin", "twitter", "email", "copy"] as const;
+export type SceneShareType = typeof sceneShareTypes[number];
+
+function isSceneShareType(type: string): type is SceneShareType {
+  return (sceneShareTypes as readonly string[]).includes(type);
+}
 
 // Authorization tools
 
@@ -318,6 +326,7 @@ export function initializeSceneEndpoints(state: State) {
         impressions: 0,
         likes: 0,
         clicks: 0,
+        shares: 0,
         place: input.place,
         content: input.content,
         text: input.text,
@@ -514,6 +523,39 @@ export function initializeSceneEndpoints(state: State) {
 
         res.statusCode = 200;
         res.json({ error: false, id: req.params.id, success: success });
+      } else {
+        console.error(`${req.method} ${req.path} scene does not exist`);
+        res.statusCode = 404;
+        res.json({ error: true, message: `scene ${req.params.id} does not exist` });
+      }
+    } catch (err) {
+      console.error(`${req.method} ${req.path} exception:`, err);
+      res.statusCode = 500;
+      res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+    }
+
+  });
+
+  // POST /scene/:id/shares/:type - record a share of a scene
+  state.app.post("/scene/:id/shares/:type", async (req: JwtRequest, res: Response) => {
+
+    const type = req.params.type;
+    if (!isSceneShareType(type)) {
+      res.statusCode = 400;
+      res.json({ error: true, message: `${type} is not a valid scene sharing type` });
+      return;
+    }
+
+    try {
+      const scene = await state.scenes.findOne({ "_id": new ObjectId(req.params.id) });
+      if (scene) {
+        let success: boolean;
+
+        if (success = isValidSession(req.session)) {
+          await logShareEvent(state, req, scene._id, type);
+        }
+        res.statusCode = 200;
+        res.json({ error: false, id: req.params.id, success: true });
       } else {
         console.error(`${req.method} ${req.path} scene does not exist`);
         res.statusCode = 404;

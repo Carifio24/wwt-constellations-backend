@@ -8,6 +8,7 @@ import { Request as JwtRequest } from "express-jwt";
 import { ObjectId } from "mongodb";
 
 import { State } from "./globals";
+import { SceneShareType } from "./scenes";
 
 export interface MongoEvent {
   kind: string;
@@ -66,4 +67,23 @@ export async function logLikeEvent(state: State, req: JwtRequest, scene_id: Obje
 
   await state.events.insertOne(evt);
   await state.scenes.findOneAndUpdate({ "_id": scene_id }, { $inc: { likes: delta } })
+}
+
+export interface MongoShareEvent extends MongoEvent {
+  kind: "share";
+  scene_id: ObjectId;
+  type: SceneShareType;
+}
+
+export async function logShareEvent(state: State, req: JwtRequest, scene_id: ObjectId, type: SceneShareType) {
+  const evt: MongoShareEvent = {
+    kind: "share",
+    sid: req.session.id,
+    date: new Date(),
+    scene_id,
+    type
+  };
+
+  await state.events.insertOne(evt);
+  await state.scenes.findOneAndUpdate({ "_id": scene_id }, { $inc: { shares: 1 } });
 }

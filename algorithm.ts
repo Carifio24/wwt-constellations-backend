@@ -141,8 +141,8 @@ export function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId
   });
 
   const times = scenes.map(scene => timeSinceCreation(scene));
-  const secondsPerDay = 1000 * 60 * 60 * 24 * 7;
-  const timeDecay = halfLogisticDecay(0.01, secondsPerDay);
+  const millisecondsPerWeek = 1000 * 60 * 60 * 24 * 7;
+  const timeDecay = halfLogisticDecay(0.01, millisecondsPerWeek);
   times.forEach((t, idx) => {
     remainingScenes[idx].timeComponent = timeDecay(t);
   });

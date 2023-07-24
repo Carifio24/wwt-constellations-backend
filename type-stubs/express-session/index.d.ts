@@ -14,6 +14,6 @@ declare module "express-session" {
   interface Session {
     impressions: Impression[],
     likes: Likes[],
-    created: number
+    created: number,
   }
 }
