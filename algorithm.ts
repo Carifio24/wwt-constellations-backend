@@ -113,12 +113,12 @@ export function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId
   const haveInitialScene = initialScene !== null;
   const feed: Feed = haveInitialScene ? [initialScene] : [];
   const handles: Record<string, number> = {};
+
   if (haveInitialScene) {
     handles[initialScene.handle_id.toString()] = 1;
-    const index = scenes.indexOf(initialScene);
-    if (index > -1) {
-      scenes.splice(index, 1);
-    }
+
+    // Note that comparing ObjectIds with ==/!= does not do what you would hope :-(
+    scenes = scenes.filter((s) => !s._id.equals(initialScene._id));
   }
 
   const remainingScenes: FeedSortingItem[] = scenes.map(scene => {
@@ -146,21 +146,24 @@ export function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId
   times.forEach((t, idx) => {
     remainingScenes[idx].timeComponent = timeDecay(t);
   });
+
   remainingScenes.sort((a, b) => score(b) - score(a));
 
   // Get an initial scene, if we need one
   if (!haveInitialScene) {
-    const handles: Record<string, number> = {};
     const firstScene = remainingScenes.shift()!.scene;
     feed.push(firstScene);
     handles[firstScene.handle_id.toString()] = 1;
   }
 
   // Now we can take the handle and location into account
-  let next: WithId<MongoScene> | null | undefined = undefined;
+
+  let next: WithId<MongoScene> | null = null;
+
   while ((next = nextScene(remainingScenes, feed, handles, firstN)) !== null) {
     feed.push(next);
   }
+
   return feed;
 }
 
