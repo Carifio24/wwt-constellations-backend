@@ -16,6 +16,7 @@ import { initializeImageEndpoints } from "./images.js";
 import { initializeSceneEndpoints } from "./scenes.js";
 import { initializeSuperuserEndpoints } from "./superuser.js";
 import { initializeSessionEndpoints } from "./session.js";
+import { initializeTessellationEndpoints } from "./tessellation.js";
 
 const config = new Config();
 
@@ -90,6 +91,7 @@ const state = new State(
   database.collection("images"),
   database.collection("handles"),
   database.collection("events"),
+  database.collection("tessellations"),
 );
 
 state.app.get("/", (_req: Request, res: Response) => {
@@ -101,6 +103,7 @@ initializeImageEndpoints(state);
 initializeSceneEndpoints(state);
 initializeSuperuserEndpoints(state);
 initializeSessionEndpoints(state);
+initializeTessellationEndpoints(state);
 
 // Let's get started!
 
