@@ -144,3 +144,20 @@ If `kind` is `"like"`:
 
 - `scene_id`: the ObjectId of the scene that was liked
 - `delta` (number): either +1 (indicating a like) or -1 (indicating an un-like)
+
+
+## The `tessellations` collection
+
+Each document in the `tessellations` collection has the following fields:
+
+- `_id`: the ObjectID of the tessellation
+- `name`: a human-readable name for the tessellation
+- `neighbors`: a list of neighbors for each point in the tessellation.
+The i-th entry in the list is itself a list which gives the index numbers of
+the neighbors for the i-th scene in the tessellation
+- `polygons`: a list of polygons describing the tessellation cells.
+The i-th entry in the list is a list of points (in spherical coordinates, using radians)
+which specify the vertices of the polygon
+- `points`: a list of the locations (RA/Dec, in radians) of the relevant scenes
+- `scene_ids`: a list of the IDs of the scenes used in the tessellations
+- `last_updated`: a timestamp of when the tessellation was last updated
