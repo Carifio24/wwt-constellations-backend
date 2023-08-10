@@ -63,33 +63,7 @@ export function findCell(tessellation: MongoTessellation, raRad: number, decRad:
   return found;
 }
 
-export function findCellWithRadius(tessellation: MongoTessellation, raRad: number, decRad: number, radius?: number): number | null {
-  const found = findCell(tessellation, raRad, decRad, undefined);
-  const foundPoint = tessellation.points[found];
-  if (!radius || distance(raRad, decRad, foundPoint[0], foundPoint[1]) < radius) {
-    return found;
-  } else {
-    return null;
-  }
-}
-
 export function initializeTessellationEndpoints(state: State) {
-  state.app.get(
-    "/tessellation/:tessellation_id",
-    async (req: JwtRequest, res: Response) => {
-      const tessellation = await state.tessellations.findOne({ "_id": new ObjectId(req.params.tessellation_id) });
-
-      if (tessellation === null) {
-        res.statusCode = 404;
-        res.json({ error: true, message: "Not found" });
-        return;
-      }
-      
-      res.json({
-        tessellation
-      });
-    }
-  );
 
   state.app.get(
     "/tessellations/:tessellation_id/cell",
@@ -113,7 +87,7 @@ export function initializeTessellationEndpoints(state: State) {
         return;
       }
 
-      const cell = findCellWithRadius(tessellation, ra, dec);
+      const cell = findCell(tessellation, ra, dec);
       if (cell === null) {
         res.statusCode = 500;
         res.json({
@@ -125,9 +99,10 @@ export function initializeTessellationEndpoints(state: State) {
 
       const location = tessellation.points[cell];
       const scene_id = tessellation.scene_ids[cell];
+      const neighbors = tessellation.neighbors[cell].map(index => tessellation.scene_ids[index]);
 
       res.json({
-        cell_number: cell,
+        neighbors,
         location: {
           ra: location[0],
           dec: location[1]
