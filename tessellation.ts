@@ -63,6 +63,34 @@ export function findCell(tessellation: MongoTessellation, raRad: number, decRad:
   return found;
 }
 
+/**
+  * In principle, the global tessellation should include all of the scenes.
+  * However, this will generally be problematic, as having multiple scenes
+  * at the same location will lead to degenerate (i.e. single-point) polygons.
+  * (In our d3-geo-voronoi implementation, these don't get added, and lead to
+  * a mismatch between cell and polygons indices, which is very bad!)
+  * To get around this, we only use a subset of scenes. Going from most to
+  * least popular, we only 'accept' scenes that are a certain minimum distance
+  * away from any other scene that we've used already (essentially giving each
+  * scene a minimum 'size'). Note that if the home timeline ordering changes,
+  * re-running this will give a different result
+  */
+async function createGlobalTessellation(state: State, minDistance=0.1) {
+  const scenes = state.scenes.find({}).sort({ home_timeline_sort_key: 1 });
+  const tessellationScenes: WithId<MongoScene>[] = [];
+  for await (const scene of scenes) {
+    const place = scene.place;
+    const accept = tessellationScenes.every(s => {
+      return distance(place.ra_rad, place.dec_rad, s.place.ra_rad, s.place.dec_rad) > minDistance;
+    });
+    if (accept) {
+      tessellationScenes.push(scene);
+    }
+  }
+
+  return createTessellation(tessellationScenes, "global");
+}
+
 export function initializeTessellationEndpoints(state: State) {
 
   state.app.get(
