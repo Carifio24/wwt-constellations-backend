@@ -1,4 +1,4 @@
-import { ObjectId, WithId } from "mongodb";
+import { Filter, ObjectId, WithId } from "mongodb";
 import { MongoScene } from "./scenes.js";
 import { distance, D2R, R2D } from "@wwtelescope/astro";
 import { GeoVoronoi, geoVoronoi, PointSpherical } from "d3-geo-voronoi";
@@ -75,7 +75,7 @@ export function findCell(tessellation: MongoTessellation, raRad: number, decRad:
   * scene a minimum 'size'). Note that if the home timeline ordering changes,
   * re-running this will give a different result
   */
-async function createGlobalTessellation(state: State, minDistance=0.1) {
+async function createGlobalTessellation(state: State, minDistance=0.02) {
   const scenes = state.scenes.find({}).sort({ home_timeline_sort_key: 1 });
   const tessellationScenes: WithId<MongoScene>[] = [];
   for await (const scene of scenes) {
@@ -93,10 +93,29 @@ async function createGlobalTessellation(state: State, minDistance=0.1) {
 
 export function initializeTessellationEndpoints(state: State) {
 
+  /** 
+    * This route has the ability to specify an ID or a tessellation 'name'
+    * which is something that I'm imagining being unique.
+    * The idea being that if we want something out of, say, the global tessellation
+    * the frontend can just ask for 'global', rather than needing to know the
+    * the tessellation ID
+    */
   state.app.get(
-    "/tessellations/:tessellation_id/cell",
+    "/tessellations/cell",
     async (req: JwtRequest, res: Response) => {
-      const tessellation = await state.tessellations.findOne({ "_id": new ObjectId(req.params.tessellation_id) });
+      if (!(req.query.id || req.query.name)) {
+        res.statusCode = 400;
+        res.json({
+          error: true,
+          message: "You must include either an id or name to identify a tessellation"
+        });
+        return
+      }
+      
+      const filter: Filter<MongoTessellation> = req.query.id
+        ? { "_id": new ObjectId(req.query.id as string) }
+        : { "name": req.query.name };
+      const tessellation = await state.tessellations.findOne(filter);
 
       if (tessellation === null) {
         res.statusCode = 404;
@@ -104,8 +123,8 @@ export function initializeTessellationEndpoints(state: State) {
         return;
       }
 
-      const ra = parseInt(req.query.ra as string);
-      const dec = parseInt(req.query.dec as string);
+      const ra = parseFloat(req.query.ra as string);
+      const dec = parseFloat(req.query.dec as string);
       if (isNaN(ra) || isNaN(dec)) {
         res.statusCode = 400;
         res.json({
