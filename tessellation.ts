@@ -17,7 +17,13 @@ export interface MongoTessellation {
 
 export function createVoronoi(scenes: WithId<MongoScene>[]): GeoVoronoi {
   const places = scenes.map(scene => scene.place);
-  const points: PointSpherical[] = places.map(place => [place.ra_rad * R2D - 180, place.dec_rad * R2D]);
+  const points: PointSpherical[] = places.map(place => {
+    let raDeg = place.ra_rad * R2D;
+    if (raDeg > 180) {
+      raDeg -= 360;
+    }
+    return [raDeg, place.dec_rad * R2D];
+  });
   return geoVoronoi(points);
 }
 
