@@ -1,4 +1,4 @@
-import { Filter, ObjectId, WithId } from "mongodb";
+import { ObjectId, WithId } from "mongodb";
 import { MongoScene } from "./scenes.js";
 import { distance, D2R, R2D } from "@wwtelescope/astro";
 import { GeoVoronoi, geoVoronoi, PointSpherical } from "d3-geo-voronoi";
@@ -107,21 +107,9 @@ export function initializeTessellationEndpoints(state: State) {
     * the tessellation ID
     */
   state.app.get(
-    "/tessellations/cell",
+    "/tessellations/:key/cell",
     async (req: JwtRequest, res: Response) => {
-      if (!(req.query.id || req.query.name)) {
-        res.statusCode = 400;
-        res.json({
-          error: true,
-          message: "You must include either an id or name to identify a tessellation"
-        });
-        return
-      }
-      
-      const filter: Filter<MongoTessellation> = req.query.id
-        ? { "_id": new ObjectId(req.query.id as string) }
-        : { "name": req.query.name };
-      const tessellation = await state.tessellations.findOne(filter);
+      const tessellation = await state.tessellations.findOne({ name: req.params.key });
 
       if (tessellation === null) {
         res.statusCode = 404;
