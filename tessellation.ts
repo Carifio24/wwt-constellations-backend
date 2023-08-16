@@ -81,7 +81,7 @@ export function findCell(tessellation: MongoTessellation, raRad: number, decRad:
   * scene a minimum 'size'). Note that if the home timeline ordering changes,
   * re-running this will give a different result
   */
-async function createGlobalTessellation(state: State, minDistance=0.02) {
+async function createGlobalTessellation(state: State, minDistance=0.02): Promise<MongoTessellation> {
   const scenes = state.scenes.find({}).sort({ home_timeline_sort_key: 1 });
   const tessellationScenes: WithId<MongoScene>[] = [];
   for await (const scene of scenes) {
