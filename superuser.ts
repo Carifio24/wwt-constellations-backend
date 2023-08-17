@@ -66,6 +66,7 @@ export function initializeSuperuserEndpoints(state: State) {
         await state.scenes.createIndex({ "creation_date": 1 });
         await state.scenes.createIndex({ "home_timeline_sort_key": 1 });
         await state.events.createIndex({ "date": 1 });
+        await state.tessellations.createIndex({ "name": 1 }, { unique: true });
 
         res.json({ error: false });
       } catch (err) {

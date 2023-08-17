@@ -17,7 +17,13 @@ export interface MongoTessellation {
 
 export function createVoronoi(scenes: WithId<MongoScene>[]): GeoVoronoi {
   const places = scenes.map(scene => scene.place);
-  const points: PointSpherical[] = places.map(place => [place.ra_rad * R2D - 180, place.dec_rad * R2D]);
+  const points: PointSpherical[] = places.map(place => {
+    let raDeg = place.ra_rad * R2D;
+    if (raDeg > 180) {
+      raDeg -= 360;
+    }
+    return [raDeg, place.dec_rad * R2D];
+  });
   return geoVoronoi(points);
 }
 
@@ -63,12 +69,47 @@ export function findCell(tessellation: MongoTessellation, raRad: number, decRad:
   return found;
 }
 
+/**
+  * In principle, the global tessellation should include all of the scenes.
+  * However, this will generally be problematic, as having multiple scenes
+  * at the same location will lead to degenerate (i.e. single-point) polygons.
+  * (In our d3-geo-voronoi implementation, these don't get added, and lead to
+  * a mismatch between cell and polygons indices, which is very bad!)
+  * To get around this, we only use a subset of scenes. Going from most to
+  * least popular, we only 'accept' scenes that are a certain minimum distance
+  * away from any other scene that we've used already (essentially giving each
+  * scene a minimum 'size'). Note that if the home timeline ordering changes,
+  * re-running this will give a different result
+  */
+async function createGlobalTessellation(state: State, minDistance=0.02): Promise<MongoTessellation> {
+  const scenes = state.scenes.find({}).sort({ home_timeline_sort_key: 1 });
+  const tessellationScenes: WithId<MongoScene>[] = [];
+  for await (const scene of scenes) {
+    const place = scene.place;
+    const accept = tessellationScenes.every(s => {
+      return distance(place.ra_rad, place.dec_rad, s.place.ra_rad, s.place.dec_rad) > minDistance;
+    });
+    if (accept) {
+      tessellationScenes.push(scene);
+    }
+  }
+
+  return createTessellation(tessellationScenes, "global");
+}
+
 export function initializeTessellationEndpoints(state: State) {
 
+  /** 
+    * This route has the ability to specify an ID or a tessellation 'name'
+    * which is something that I'm imagining being unique.
+    * The idea being that if we want something out of, say, the global tessellation
+    * the frontend can just ask for 'global', rather than needing to know the
+    * the tessellation ID
+    */
   state.app.get(
-    "/tessellations/:tessellation_id/cell",
+    "/tessellations/:key/cell",
     async (req: JwtRequest, res: Response) => {
-      const tessellation = await state.tessellations.findOne({ "_id": new ObjectId(req.params.tessellation_id) });
+      const tessellation = await state.tessellations.findOne({ name: req.params.key });
 
       if (tessellation === null) {
         res.statusCode = 404;
@@ -76,8 +117,8 @@ export function initializeTessellationEndpoints(state: State) {
         return;
       }
 
-      const ra = parseInt(req.query.ra as string);
-      const dec = parseInt(req.query.dec as string);
+      const ra = parseFloat(req.query.ra as string);
+      const dec = parseFloat(req.query.dec as string);
       if (isNaN(ra) || isNaN(dec)) {
         res.statusCode = 400;
         res.json({
