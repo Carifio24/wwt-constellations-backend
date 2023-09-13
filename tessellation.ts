@@ -1,5 +1,5 @@
 import { ObjectId, WithId } from "mongodb";
-import { MongoScene } from "./scenes.js";
+import { MongoScene, sceneToJson } from "./scenes.js";
 import { distance, D2R, R2D } from "@wwtelescope/astro";
 import { GeoVoronoi, geoVoronoi, PointSpherical } from "d3-geo-voronoi";
 import { Response } from "express";
@@ -97,6 +97,29 @@ async function createGlobalTessellation(state: State, minDistance=0.02): Promise
   return createTessellation(tessellationScenes, "global");
 }
 
+function nearbySceneIDs(sceneID: ObjectId, baseTessellation: MongoTessellation, size: number): ObjectId[] {
+  const sceneIDs: ObjectId[] = [sceneID];
+  const index = baseTessellation.scene_ids.indexOf(sceneID);
+  if (index < 0) {
+    return sceneIDs;
+  }
+  const queue: number[] = [index];
+  const visited = new Set<number>();
+  while (sceneIDs.length < size && queue.length > 0) {
+    const sceneIndex = queue.shift();
+    if (sceneIndex === undefined || visited.has(sceneIndex)) {
+      continue;
+    }
+    visited.add(sceneIndex);
+    sceneIDs.push(baseTessellation.scene_ids[sceneIndex]);
+    const neighbors = baseTessellation.neighbors[sceneIndex];
+    queue.push(...neighbors);
+  }
+  return sceneIDs;
+}
+
+
+
 export function initializeTessellationEndpoints(state: State) {
 
   /** 
@@ -107,9 +130,9 @@ export function initializeTessellationEndpoints(state: State) {
     * the tessellation ID
     */
   state.app.get(
-    "/tessellations/:key/cell",
+    "/tessellations/cell",
     async (req: JwtRequest, res: Response) => {
-      const tessellation = await state.tessellations.findOne({ name: req.params.key });
+      const tessellation = await state.tessellations.findOne({ name: req.query.name as string });
 
       if (tessellation === null) {
         res.statusCode = 404;
@@ -152,4 +175,37 @@ export function initializeTessellationEndpoints(state: State) {
       });
     }
   );
+
+  // TODO: Where should this go?
+  state.app.get(
+    "/tessellations/nearby-feed/:sceneID",
+    async (req: JwtRequest, res: Response) => {
+      const tessellation = await state.tessellations.findOne({ name: "global" });
+      if (tessellation === null) {
+        res.statusCode = 500;
+        res.json({ error: true, message: "error finding global tessellation" });
+        return;
+      }
+
+      if (req.query.size === undefined) {
+        res.statusCode = 400;
+        res.json({ error: true, message: "invalid size" });
+        return;
+      }
+      const size = parseInt(req.query.size as string, 10);
+      const sceneID = new ObjectId(req.params.sceneID as string);
+      const nearbyIDs = nearbySceneIDs(sceneID, tessellation, size);
+      const docs = state.scenes.find({ id: { "$in": nearbyIDs } });
+
+      const scenes = [];
+      for await (const doc of docs) {
+        scenes.push(await sceneToJson(doc, state, req.session)); 
+      }
+
+      res.json({
+        error: false,
+        results: scenes
+      });
+    });
+
 }
