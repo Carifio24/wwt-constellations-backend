@@ -99,7 +99,7 @@ async function createGlobalTessellation(state: State, minDistance=0.02): Promise
 
 function nearbySceneIDs(sceneID: ObjectId, baseTessellation: MongoTessellation, size: number): ObjectId[] {
   const sceneIDs: ObjectId[] = [sceneID];
-  const index = baseTessellation.scene_ids.indexOf(sceneID);
+  const index = baseTessellation.scene_ids.findIndex((id) => id.equals(sceneID));
   if (index < 0) {
     return sceneIDs;
   }
