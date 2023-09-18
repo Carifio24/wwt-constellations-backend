@@ -195,7 +195,7 @@ export function initializeTessellationEndpoints(state: State) {
       const size = parseInt(req.query.size as string, 10);
       const sceneID = new ObjectId(req.params.sceneID as string);
       const nearbyIDs = nearbySceneIDs(sceneID, tessellation, size);
-      const docs = state.scenes.find({ id: { "$in": nearbyIDs } });
+      const docs = state.scenes.find({ _id: { "$in": nearbyIDs } });
 
       const scenes = [];
       for await (const doc of docs) {
