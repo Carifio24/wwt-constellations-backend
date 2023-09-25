@@ -22,6 +22,7 @@ import { logClickEvent, logImpressionEvent, logLikeEvent, logShareEvent } from "
 import { State } from "./globals.js";
 import { isAllowed as handleIsAllowed } from "./handles.js";
 import { imageToImageset, imageToDisplayJson } from "./images.js";
+import { nearbySceneIDs } from "./tessellation.js";
 import { IoObjectId, UnitInterval } from "./util.js";
 import { isValidSession, tryAddImpressionToSession, tryAddLikeToSession, tryRemoveLikeFromSession } from "./session.js";
 import { Session } from "express-session";
@@ -868,4 +869,36 @@ export function initializeSceneEndpoints(state: State) {
       }
     }
   );
+
+  state.app.get(
+    "/scene/:id/nearby-global",
+    async (req: JwtRequest, res: Response) => {
+      const tessellation = await state.tessellations.findOne({ name: "global" });
+      if (tessellation === null) {
+        res.statusCode = 500;
+        res.json({ error: true, message: "error finding global tessellation" });
+        return;
+      }
+
+      if (req.query.size === undefined) {
+        res.statusCode = 400;
+        res.json({ error: true, message: "invalid size" });
+        return;
+      }
+      const size = parseInt(req.query.size as string, 10);
+      const sceneID = new ObjectId(req.params.id as string);
+      const nearbyIDs = nearbySceneIDs(sceneID, tessellation, size);
+      const docs = state.scenes.find({ _id: { "$in": nearbyIDs } });
+
+      const scenes = [];
+      for await (const doc of docs) {
+        scenes.push(await sceneToJson(doc, state, req.session));
+      }
+
+      res.json({
+        error: false,
+        results: scenes
+      });
+    });
+
 }

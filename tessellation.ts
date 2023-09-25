@@ -97,7 +97,7 @@ async function createGlobalTessellation(state: State, minDistance=0.02): Promise
   return createTessellation(tessellationScenes, "global");
 }
 
-function nearbySceneIDs(sceneID: ObjectId, baseTessellation: MongoTessellation, size: number): ObjectId[] {
+export function nearbySceneIDs(sceneID: ObjectId, baseTessellation: MongoTessellation, size: number): ObjectId[] {
   const sceneIDs: ObjectId[] = [sceneID];
   const index = baseTessellation.scene_ids.findIndex((id) => id.equals(sceneID));
   if (index < 0) {
@@ -130,9 +130,9 @@ export function initializeTessellationEndpoints(state: State) {
     * the tessellation ID
     */
   state.app.get(
-    "/tessellations/cell",
+    "/tessellations/:key/cell",
     async (req: JwtRequest, res: Response) => {
-      const tessellation = await state.tessellations.findOne({ name: req.query.name as string });
+      const tessellation = await state.tessellations.findOne({ name: req.params.key });
 
       if (tessellation === null) {
         res.statusCode = 404;
@@ -175,37 +175,5 @@ export function initializeTessellationEndpoints(state: State) {
       });
     }
   );
-
-  // TODO: Where should this go?
-  state.app.get(
-    "/tessellations/nearby-feed/:sceneID",
-    async (req: JwtRequest, res: Response) => {
-      const tessellation = await state.tessellations.findOne({ name: "global" });
-      if (tessellation === null) {
-        res.statusCode = 500;
-        res.json({ error: true, message: "error finding global tessellation" });
-        return;
-      }
-
-      if (req.query.size === undefined) {
-        res.statusCode = 400;
-        res.json({ error: true, message: "invalid size" });
-        return;
-      }
-      const size = parseInt(req.query.size as string, 10);
-      const sceneID = new ObjectId(req.params.sceneID as string);
-      const nearbyIDs = nearbySceneIDs(sceneID, tessellation, size);
-      const docs = state.scenes.find({ _id: { "$in": nearbyIDs } });
-
-      const scenes = [];
-      for await (const doc of docs) {
-        scenes.push(await sceneToJson(doc, state, req.session)); 
-      }
-
-      res.json({
-        error: false,
-        results: scenes
-      });
-    });
 
 }
