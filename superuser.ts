@@ -12,7 +12,7 @@ import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { isLeft } from "fp-ts/lib/Either.js";
 import { AnyBulkWriteOperation, ObjectId } from "mongodb";
 
-import { constructFeed } from "./algorithm.js";
+import { constructFeed, FeedConstructionParams, ScoreWeights } from "./algorithm.js";
 import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 
@@ -214,7 +214,7 @@ export function initializeSuperuserEndpoints(state: State) {
       // No input to parse - since we've verified that it's the superuser
       // making the request, we can just update the scene ordering
       const scenes = await state.scenes.find().toArray();
-      const orderedFeed = constructFeed(scenes, initialScene);
+      const orderedFeed = constructFeed({ scenes, initialScene });
       const operations: AnyBulkWriteOperation<MongoScene>[] = [];
 
       orderedFeed.forEach((scene, index) => {
@@ -231,5 +231,6 @@ export function initializeSuperuserEndpoints(state: State) {
 
       state.scenes.bulkWrite(operations);
       res.json({ error: false });
-    });
+    }
+  );
 }

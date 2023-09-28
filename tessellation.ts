@@ -1,5 +1,5 @@
 import { ObjectId, WithId } from "mongodb";
-import { MongoScene } from "./scenes.js";
+import { MongoScene, sceneToJson } from "./scenes.js";
 import { distance, D2R, R2D } from "@wwtelescope/astro";
 import { GeoVoronoi, geoVoronoi, PointSpherical } from "d3-geo-voronoi";
 import { Response } from "express";
@@ -97,6 +97,29 @@ async function createGlobalTessellation(state: State, minDistance=0.02): Promise
   return createTessellation(tessellationScenes, "global");
 }
 
+export function nearbySceneIDs(sceneID: ObjectId, baseTessellation: MongoTessellation, size: number): ObjectId[] {
+  const sceneIDs: ObjectId[] = [sceneID];
+  const index = baseTessellation.scene_ids.findIndex((id) => id.equals(sceneID));
+  if (index < 0) {
+    return sceneIDs;
+  }
+  const queue: number[] = [index];
+  const visited = new Set<number>();
+  while (sceneIDs.length < size && queue.length > 0) {
+    const sceneIndex = queue.shift();
+    if (sceneIndex === undefined || visited.has(sceneIndex)) {
+      continue;
+    }
+    visited.add(sceneIndex);
+    sceneIDs.push(baseTessellation.scene_ids[sceneIndex]);
+    const neighbors = baseTessellation.neighbors[sceneIndex];
+    queue.push(...neighbors);
+  }
+  return sceneIDs;
+}
+
+
+
 export function initializeTessellationEndpoints(state: State) {
 
   /** 
@@ -152,4 +175,5 @@ export function initializeTessellationEndpoints(state: State) {
       });
     }
   );
+
 }

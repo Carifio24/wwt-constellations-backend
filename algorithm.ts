@@ -3,10 +3,19 @@ import { distance } from "@wwtelescope/astro";
 
 import { MongoScene } from "./scenes";
 
-const TIME_WEIGHT = 1;
-const POPULARITY_WEIGHT = 1;
-const DISTANCE_WEIGHT = 1;
-const VARIETY_WEIGHT = 1;
+export interface ScoreWeights {
+  time: number;
+  popularity: number;
+  distance: number;
+  variety: number;
+}
+
+const DEFAULT_WEIGHTS: ScoreWeights = {
+  time: 1,
+  popularity: 1,
+  distance: 1,
+  variety: 1
+};
 
 export interface FeedSortingItem {
   scene: WithId<MongoScene>;
@@ -18,11 +27,27 @@ export interface FeedSortingItem {
 
 export type Feed = WithId<MongoScene>[];
 
-function score(item: FeedSortingItem): number {
-  return TIME_WEIGHT * item.timeComponent +
-    POPULARITY_WEIGHT * item.popularityComponent +
-    DISTANCE_WEIGHT * item.distanceComponent +
-    VARIETY_WEIGHT * item.varietyComponent;
+function score(item: FeedSortingItem, weights: ScoreWeights = DEFAULT_WEIGHTS): number {
+  return weights.time * item.timeComponent +
+    weights.popularity * item.popularityComponent +
+    weights.distance * item.distanceComponent +
+    weights.variety * item.varietyComponent;
+}
+
+export interface FeedConstructionParams {
+  scenes: WithId<MongoScene>[];
+  initialScene?: WithId<MongoScene> | null;
+  weights?: ScoreWeights;
+  firstNDistinctHandles?: number;
+  size?: number;
+}
+
+interface NextSceneParams {
+  items: FeedSortingItem[];
+  feed: Feed;
+  handleCounts: Record<string, number>;
+  weights: ScoreWeights;
+  firstNDistinctHandles: number;
 }
 
 
@@ -65,29 +90,31 @@ function distanceBetween(scene1: MongoScene, scene2: MongoScene): number {
   return distance(scene1.place.ra_rad, scene1.place.dec_rad, scene2.place.ra_rad, scene2.place.dec_rad);
 }
 
-function nextScene(items: FeedSortingItem[], feed: Feed, handles: Record<string, number>, firstN: number): WithId<MongoScene> | null {
-  if (items.length === 0) {
+function nextScene(params: NextSceneParams): WithId<MongoScene> | null {
+  if (params.items.length === 0) {
     return null;
   }
 
+  const { feed, items, handleCounts, weights, firstNDistinctHandles } = params;
   const mostRecent = feed[feed.length - 1];
   items.forEach(item => {
-    const handleCount = handles[item.scene.handle_id.toString()] || 0;
+    const handleCount = handleCounts[item.scene.handle_id.toString()] || 0;
     item.varietyComponent = handleCountComponent(handleCount);
 
     const dist = distanceBetween(mostRecent, item.scene);
     item.distanceComponent = distanceComponent(dist);
   });
 
-  items.sort((a, b) => score(b) - score(a));
+  const weightScore = (item: FeedSortingItem) => score(item, weights);
+  items.sort((a, b) => weightScore(b) - weightScore(a));
 
-  if (feed.length < firstN) {
+  if (feed.length < firstNDistinctHandles) {
     let index = 0;
     while (index < items.length) {
       const item = items[index];
       const handle = item.scene.handle_id.toString();
-      if (!(handle in handles)) {
-        handles[handle] = 1;
+      if (!(handle in handleCounts)) {
+        handleCounts[handle] = 1;
         return items.splice(index, 1)[0].scene;
       }
       index++;
@@ -100,22 +127,29 @@ function nextScene(items: FeedSortingItem[], feed: Feed, handles: Record<string,
       return null;
     }
     const handle = scene.handle_id.toString();
-    if (handle in handles) {
-      handles[handle] += 1;
+    if (handle in handleCounts) {
+      handleCounts[handle] += 1;
     } else {
-      handles[handle] = 1;
+      handleCounts[handle] = 1;
     }
     return scene;
   }
 }
 
-export function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId<MongoScene> | null = null, firstN = 5): Feed {
-  const haveInitialScene = initialScene !== null;
+export function constructFeed(params: FeedConstructionParams): Feed {
+  const initialScene = params.initialScene;
+  const haveInitialScene = initialScene != null;
   const feed: Feed = haveInitialScene ? [initialScene] : [];
-  const handles: Record<string, number> = {};
+  const handleCounts: Record<string, number> = {};
+
+  // Unpack our parameters and set reasonable defaults
+  let scenes = params.scenes;
+  const firstNDistinctHandles = params.firstNDistinctHandles ?? 5;
+  const weights = params.weights ?? DEFAULT_WEIGHTS;
+  const size = params.size ?? Infinity;
 
   if (haveInitialScene) {
-    handles[initialScene.handle_id.toString()] = 1;
+    handleCounts[initialScene.handle_id.toString()] = 1;
 
     // Note that comparing ObjectIds with ==/!= does not do what you would hope :-(
     scenes = scenes.filter((s) => !s._id.equals(initialScene._id));
@@ -153,14 +187,15 @@ export function constructFeed(scenes: WithId<MongoScene>[], initialScene: WithId
   if (!haveInitialScene) {
     const firstScene = remainingScenes.shift()!.scene;
     feed.push(firstScene);
-    handles[firstScene.handle_id.toString()] = 1;
+    handleCounts[firstScene.handle_id.toString()] = 1;
   }
 
   // Now we can take the handle and location into account
 
   let next: WithId<MongoScene> | null = null;
 
-  while ((next = nextScene(remainingScenes, feed, handles, firstN)) !== null) {
+  while (feed.length < size &&
+         (next = nextScene({ items: remainingScenes, handleCounts, feed, weights, firstNDistinctHandles })) !== null) {
     feed.push(next);
   }
 
