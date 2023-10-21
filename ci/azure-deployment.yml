@@ -16,7 +16,13 @@ jobs:
 # Deployment jobs that should only happen on updates to the main branch.
 
 - ${{ if parameters.isMainDev }}:
-  - job: deploy_dev
+  # Currently (2023 October) we're deploying to prod from the main branch, since
+  # we're launching the service and will want to iterate rapidly. And we're
+  # probably going to tear down the dev environment unless we find a way to make
+  # it much cheaper to run. But ideally we'd deploy to a dev environment and
+  # only push to prod in Cranko releases, or whatever.
+
+  - job: deploy_prod
     pool:
       vmImage: ubuntu-latest
     variables:
@@ -29,7 +35,7 @@ jobs:
       inputs:
         azureSubscription: 'aas@wwtadmindotnetfoundation'
         appType: webAppLinux
-        appName: wwtdev-cxbe
+        appName: wwtprod-cxbe
         runtimeStack: 'NODE|18-lts'
         package: $(Pipeline.Workspace)/app-package/app-package-$(Build.BuildId).zip
         startUpCommand: yarn start
