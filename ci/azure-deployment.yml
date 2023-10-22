@@ -31,11 +31,14 @@ jobs:
     - template: azure-job-setup.yml
 
     - task: AzureWebApp@1
-      displayName: Deploy app to dev environment
+      displayName: Deploy app to prod environment
       inputs:
         azureSubscription: 'aas@wwtadmindotnetfoundation'
         appType: webAppLinux
         appName: wwtprod-cxbe
+        deployToSlotOrASE: true
+        resourceGroupName: wwtprod-cxbackend
+        slotName: stage
         runtimeStack: 'NODE|18-lts'
         package: $(Pipeline.Workspace)/app-package/app-package-$(Build.BuildId).zip
         startUpCommand: yarn start
