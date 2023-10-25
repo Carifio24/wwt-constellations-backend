@@ -59,11 +59,24 @@ Environment variables:
 - `CX_SESSION_SECRETS` is a space-delimited list of secrets used to hash session
   cookies. Default is `dev-secret`. The first secret is used for creating new
   sessions; any subsequent secrets are used for checking existing sessions,
-  allowing use to rotate the secret periodically.
+  allowing you to rotate the secret periodically.
 - `CX_SUPERUSER_ACCOUNT_ID` sets the Keycloak account ID of an account that can
   perform some special administrative tasks.
 
 [CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+
+
+## Deployment
+
+Merges to the main branch are automatically deployed to a “staging slot” of the
+WWT web app. To bring the new code into production, you need to “swap” that slot
+into the production role. You can do this through the Azure Portal UI or using
+the `az` CLI tool as follows:
+
+```bash
+az webapp deployment slot swap -g wwtprod-cxbackend -n wwtprod-cxbe --slot stage --target-slot production
+```
+
 
 ## Bootstrapping a Development Environment
 
