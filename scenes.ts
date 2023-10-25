@@ -193,6 +193,8 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
     creation_date: scene.creation_date,
     likes: scene.likes,
     impressions: scene.impressions,
+    clicks: scene.clicks || 0,
+    shares: scene.shares || 0,
     place: scene.place,
     text: scene.text,
     liked: session?.likes?.some(x => x.scene_id == scene._id.toString()) ?? false,
@@ -854,7 +856,15 @@ export function initializeSceneEndpoints(state: State) {
           .sort({ creation_date: -1 })
           .skip(page_num * page_size)
           .limit(page_size)
-          .project({ "_id": 1, "creation_date": 1, "impressions": 1, "likes": 1, "text": 1 })
+          .project({
+            "_id": 1,
+            "creation_date": 1,
+            "impressions": 1,
+            "likes": 1,
+            "clicks": 1,
+            "shares": 1,
+            "text": 1
+          })
           .toArray();
 
         res.json({

@@ -209,12 +209,16 @@ export function initializeHandleEndpoints(state: State) {
               "count": { "$sum": 1 }, // Azure Cosmos doesn't support $count
               "impressions": { "$sum": "$impressions" },
               "likes": { "$sum": "$likes" },
+              "clicks": { "$sum": "$clicks" },
+              "shares": { "$sum": "$shares" },
             }
           },
         ]).next()) || {
           count: 0,
           impressions: 0,
           likes: 0,
+          clicks: 0,
+          shares: 0,
         };
 
         // Construct the output
@@ -229,6 +233,8 @@ export function initializeHandleEndpoints(state: State) {
             count: sceneStats.count,
             impressions: sceneStats.impressions,
             likes: sceneStats.likes,
+            clicks: sceneStats.clicks,
+            shares: sceneStats.shares,
           },
         };
 
