@@ -176,8 +176,12 @@ export function initializeSuperuserEndpoints(state: State) {
     }
   );
 
+  // POST /misc/update-timeline?initial_id=$id
+  //
+  // Note that we're using URL query parameters even though this is a POST request.
+
   state.app.post(
-    "/misc/update-timeline?initial_id=$id",
+    "/misc/update-timeline",
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const initialIDInput = req.query.initial_id;
@@ -213,6 +217,8 @@ export function initializeSuperuserEndpoints(state: State) {
       res.json({ error: false });
     }
   );
+
+  // POST /misc/update-global-tessellation
 
   state.app.post(
     "/misc/update-global-tessellation",
