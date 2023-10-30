@@ -79,15 +79,16 @@ export function findCell(tessellation: MongoTessellation, raRad: number, decRad:
   * least popular, we only 'accept' scenes that are a certain minimum distance
   * away from any other scene that we've used already (essentially giving each
   * scene a minimum 'size'). Note that if the home timeline ordering changes,
-  * re-running this will give a different result
+  * re-running this will give a different result; also this makes our prep time
+  * scale quadratically with the number of scenes.
   */
-async function createGlobalTessellation(state: State, minDistance=0.02): Promise<MongoTessellation> {
+export async function createGlobalTessellation(state: State, minDistanceRad = 0.01): Promise<MongoTessellation> {
   const scenes = state.scenes.find({}).sort({ home_timeline_sort_key: 1 });
   const tessellationScenes: WithId<MongoScene>[] = [];
   for await (const scene of scenes) {
     const place = scene.place;
     const accept = tessellationScenes.every(s => {
-      return distance(place.ra_rad, place.dec_rad, s.place.ra_rad, s.place.dec_rad) > minDistance;
+      return distance(place.ra_rad, place.dec_rad, s.place.ra_rad, s.place.dec_rad) > minDistanceRad;
     });
     if (accept) {
       tessellationScenes.push(scene);
