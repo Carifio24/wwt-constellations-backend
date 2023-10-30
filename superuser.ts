@@ -12,9 +12,10 @@ import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { isLeft } from "fp-ts/lib/Either.js";
 import { AnyBulkWriteOperation, ObjectId } from "mongodb";
 
-import { constructFeed, FeedConstructionParams, ScoreWeights } from "./algorithm.js";
+import { constructFeed } from "./algorithm.js";
 import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
+import { createGlobalTessellation } from "./tessellation.js";
 
 export function initializeSuperuserEndpoints(state: State) {
   const amISuperuser = (req: JwtRequest) => {
@@ -175,27 +176,8 @@ export function initializeSuperuserEndpoints(state: State) {
     }
   );
 
-  // POST /misc/shuffle-home-timeline - randomize the home timeline
   state.app.post(
-    "/misc/shuffle-home-timeline",
-    requireSuperuser,
-    async (req: JwtRequest, res: Response) => {
-      try {
-        await state.scenes.updateMany(
-          {},
-          [{ $set: { home_timeline_sort_key: { $rand: {} } } }]
-        );
-        res.json({ error: false });
-      } catch (err) {
-        console.error(`${req.method} ${req.path} exception:`, err);
-        res.statusCode = 500;
-        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
-      }
-    }
-  );
-
-  state.app.post(
-    "/misc/update-timeline",
+    "/misc/update-timeline?initial_id=$id",
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const initialIDInput = req.query.initial_id;
@@ -211,8 +193,6 @@ export function initializeSuperuserEndpoints(state: State) {
       const initialScene = initialSceneID ?
         await state.scenes.findOne({ "_id": initialSceneID }) : null;
 
-      // No input to parse - since we've verified that it's the superuser
-      // making the request, we can just update the scene ordering
       const scenes = await state.scenes.find().toArray();
       const orderedFeed = constructFeed({ scenes, initialScene });
       const operations: AnyBulkWriteOperation<MongoScene>[] = [];
@@ -230,6 +210,17 @@ export function initializeSuperuserEndpoints(state: State) {
       });
 
       state.scenes.bulkWrite(operations);
+      res.json({ error: false });
+    }
+  );
+
+  state.app.post(
+    "/misc/update-global-tessellation",
+    requireSuperuser,
+    async (_req: JwtRequest, res: Response) => {
+      const MIN_DISTANCE_RAD = 0.01; // about 0.6 deg
+      const tess = await createGlobalTessellation(state, MIN_DISTANCE_RAD);
+      await state.tessellations.updateOne({ name: tess.name }, { $set: tess }, { upsert: true });
       res.json({ error: false });
     }
   );
