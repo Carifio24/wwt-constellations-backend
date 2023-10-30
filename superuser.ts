@@ -175,27 +175,8 @@ export function initializeSuperuserEndpoints(state: State) {
     }
   );
 
-  // POST /misc/shuffle-home-timeline - randomize the home timeline
   state.app.post(
-    "/misc/shuffle-home-timeline",
-    requireSuperuser,
-    async (req: JwtRequest, res: Response) => {
-      try {
-        await state.scenes.updateMany(
-          {},
-          [{ $set: { home_timeline_sort_key: { $rand: {} } } }]
-        );
-        res.json({ error: false });
-      } catch (err) {
-        console.error(`${req.method} ${req.path} exception:`, err);
-        res.statusCode = 500;
-        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
-      }
-    }
-  );
-
-  state.app.post(
-    "/misc/update-timeline",
+    "/misc/update-timeline?initial_id=$id",
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const initialIDInput = req.query.initial_id;
