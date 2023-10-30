@@ -316,11 +316,6 @@ export function initializeSceneEndpoints(state: State) {
         return;
       }
 
-      // TODO: figure out how we'll handle this! Current approach ought to
-      // cause new scenes to show up at the top of the timeline right away.
-
-      const home_timeline_sort_key = -Date.now();
-
       // OK, looks good.
 
       const new_rec: MongoScene = {
@@ -334,7 +329,6 @@ export function initializeSceneEndpoints(state: State) {
         content: input.content,
         text: input.text,
         previews: {},
-        home_timeline_sort_key
       };
 
       if (input.outgoing_url) {
