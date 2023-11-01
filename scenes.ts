@@ -765,7 +765,7 @@ export function initializeSceneEndpoints(state: State) {
           res.json({ error: true, message: `invalid page number` });
         }
 
-        const docs = await state.scenes.find()
+        const docs = await state.scenes.find({ home_timeline_sort_key: { $gte: 0 } })
           .sort({ home_timeline_sort_key: 1 })
           .skip(page_num * page_size)
           .limit(page_size)
