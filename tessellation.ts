@@ -83,8 +83,9 @@ export function findCell(tessellation: MongoTessellation, raRad: number, decRad:
   * scale quadratically with the number of scenes.
   */
 export async function createGlobalTessellation(state: State, minDistanceRad = 0.01): Promise<MongoTessellation> {
-  const scenes = state.scenes.find({}).sort({ home_timeline_sort_key: 1 });
+  const scenes = state.scenes.find({ home_timeline_sort_key: { $gte: 0 } }).sort({ home_timeline_sort_key: 1 });
   const tessellationScenes: WithId<MongoScene>[] = [];
+
   for await (const scene of scenes) {
     const place = scene.place;
     const accept = tessellationScenes.every(s => {
