@@ -102,8 +102,11 @@ export function initializeHandleEndpoints(state: State) {
         // Now, the actual query
 
         const docs = await state.scenes
-          .find({ "handle_id": { "$eq": handle._id } })
-          .sort({ creation_date: -1 }) // todo: publish date; published vs. unpublished
+          .find({
+            "handle_id": { "$eq": handle._id },
+            published: true,
+          })
+          .sort({ creation_date: -1 }) // todo: publish date
           .skip(page_num * page_size)
           .limit(page_size)
           .toArray();

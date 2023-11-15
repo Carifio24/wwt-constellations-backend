@@ -1,5 +1,5 @@
 import { ObjectId, WithId } from "mongodb";
-import { MongoScene, sceneToJson } from "./scenes.js";
+import { MongoScene } from "./scenes.js";
 import { distance, D2R, R2D } from "@wwtelescope/astro";
 import { GeoVoronoi, geoVoronoi, PointSpherical } from "d3-geo-voronoi";
 import { Response } from "express";
@@ -83,7 +83,10 @@ export function findCell(tessellation: MongoTessellation, raRad: number, decRad:
   * scale quadratically with the number of scenes.
   */
 export async function createGlobalTessellation(state: State, minDistanceRad = 0.01): Promise<MongoTessellation> {
-  const scenes = state.scenes.find({ home_timeline_sort_key: { $gte: 0 } }).sort({ home_timeline_sort_key: 1 });
+  const scenes = state.scenes.find({
+    home_timeline_sort_key: { $gte: 0 },
+    published: true,
+  }).sort({ home_timeline_sort_key: 1 });
   const tessellationScenes: WithId<MongoScene>[] = [];
 
   for await (const scene of scenes) {
