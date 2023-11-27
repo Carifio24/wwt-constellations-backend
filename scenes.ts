@@ -260,7 +260,7 @@ export function initializeSceneEndpoints(state: State) {
     content: SceneContent,
     outgoing_url: t.union([t.string, t.undefined]),
     text: t.string,
-    publish: t.boolean,
+    published: t.union([t.boolean, t.undefined])
   });
 
   type SceneCreationT = t.TypeOf<typeof SceneCreation>;
@@ -332,7 +332,7 @@ export function initializeSceneEndpoints(state: State) {
         content: input.content,
         text: input.text,
         previews: {},
-        published: input.publish,
+        published: input.published ?? true,
       };
 
       if (input.outgoing_url) {
