@@ -607,7 +607,7 @@ export function initializeSceneEndpoints(state: State) {
     outgoing_url: t.string,
     place: ScenePlace,
     content: SceneContentPatch,
-    publish: t.boolean,
+    published: t.boolean,
   });
 
   type ScenePatchT = t.TypeOf<typeof ScenePatch>;
@@ -721,9 +721,9 @@ export function initializeSceneEndpoints(state: State) {
           }
         }
 
-        if (input.publish !== undefined) {
+        if (input.published !== undefined) {
           allowed = allowed && canEdit;
-          (operation as any)["$set"]["published"] = input.publish;
+          (operation as any)["$set"]["published"] = input.published;
         }
 
         // How did we do?
