@@ -44,6 +44,7 @@ export interface MongoScene {
   outgoing_url?: string;
   text: string;
 
+  published: boolean;
   home_timeline_sort_key?: number;
 }
 
@@ -199,6 +200,7 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
     text: scene.text,
     liked: session?.likes?.some(x => x.scene_id == scene._id.toString()) ?? false,
     content: {},
+    published: scene.published
   };
 
   if (scene.outgoing_url) {
@@ -258,6 +260,7 @@ export function initializeSceneEndpoints(state: State) {
     content: SceneContent,
     outgoing_url: t.union([t.string, t.undefined]),
     text: t.string,
+    published: t.union([t.boolean, t.undefined])
   });
 
   type SceneCreationT = t.TypeOf<typeof SceneCreation>;
@@ -329,6 +332,7 @@ export function initializeSceneEndpoints(state: State) {
         content: input.content,
         text: input.text,
         previews: {},
+        published: input.published ?? true,
       };
 
       if (input.outgoing_url) {
@@ -603,6 +607,7 @@ export function initializeSceneEndpoints(state: State) {
     outgoing_url: t.string,
     place: ScenePlace,
     content: SceneContentPatch,
+    published: t.boolean,
   });
 
   type ScenePatchT = t.TypeOf<typeof ScenePatch>;
@@ -716,6 +721,11 @@ export function initializeSceneEndpoints(state: State) {
           }
         }
 
+        if (input.published !== undefined) {
+          allowed = allowed && canEdit;
+          (operation as any)["$set"]["published"] = input.published;
+        }
+
         // How did we do?
 
         if (!allowed) {
@@ -765,7 +775,10 @@ export function initializeSceneEndpoints(state: State) {
           res.json({ error: true, message: `invalid page number` });
         }
 
-        const docs = await state.scenes.find({ home_timeline_sort_key: { $gte: 0 } })
+        const docs = await state.scenes.find({
+          home_timeline_sort_key: { $gte: 0 },
+          published: true,
+        })
           .sort({ home_timeline_sort_key: 1 })
           .skip(page_num * page_size)
           .limit(page_size)
@@ -857,7 +870,8 @@ export function initializeSceneEndpoints(state: State) {
             "likes": 1,
             "clicks": 1,
             "shares": 1,
-            "text": 1
+            "text": 1,
+            "published": 1
           })
           .toArray();
 

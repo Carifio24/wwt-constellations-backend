@@ -197,7 +197,7 @@ export function initializeSuperuserEndpoints(state: State) {
       const initialScene = initialSceneID ?
         await state.scenes.findOne({ "_id": initialSceneID }) : null;
 
-      const scenes = await state.scenes.find().toArray();
+      const scenes = await state.scenes.find({ published: true }).toArray();
       const orderedFeed = constructFeed({ scenes, initialScene });
       const operations: AnyBulkWriteOperation<MongoScene>[] = [];
 

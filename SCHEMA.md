@@ -109,6 +109,8 @@ Each document in the `scenes` collection may have the following fields:
     container, if one exists
   - `thumbnail`: (optional string) The basename of the preview thumbnail image
     in the blob container, if one exists
+- `published` (boolean): Whether or not the scene has been published. This affects
+    whether it will appear in timelines.
 - `home_timeline_sort_key` (integer): if present and non-negative, the scene is
   included in the global home timeline, with its position set by the ordering of
   these values.
