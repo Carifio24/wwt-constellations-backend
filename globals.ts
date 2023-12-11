@@ -7,6 +7,7 @@ import { MongoImage } from "./images";
 import { MongoScene } from "./scenes";
 import { MongoEvent } from "./events";
 import { MongoTessellation } from "./tessellation";
+import { MongoSceneFeature } from "./features";
 
 export class Config {
   // The port number on which the server will listen.
@@ -81,6 +82,7 @@ export class State {
   images: Collection<MongoImage>;
   handles: Collection<MongoHandle>;
   events: Collection<MongoEvent>;
+  features: Collection<MongoSceneFeature>;
   tessellations: Collection<MongoTessellation>;
 
   constructor(
@@ -90,6 +92,7 @@ export class State {
     images: Collection<MongoImage>,
     handles: Collection<MongoHandle>,
     events: Collection<MongoEvent>,
+    features: Collection<MongoSceneFeature>,
     tessellations: Collection<MongoTessellation>,
   ) {
     this.config = config;
@@ -98,6 +101,7 @@ export class State {
     this.images = images;
     this.handles = handles;
     this.events = events;
+    this.features = features;
     this.tessellations = tessellations;
   }
 }

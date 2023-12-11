@@ -91,6 +91,7 @@ const state = new State(
   database.collection("images"),
   database.collection("handles"),
   database.collection("events"),
+  database.collection("features"),
   database.collection("tessellations"),
 );
 
