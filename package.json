@@ -20,6 +20,8 @@
     "jsdom": "^22.0.0",
     "jwks-rsa": "^3.0",
     "mongodb": "^5.0.1",
+    "monocle-ts": "^2.3.13",
+    "newtype-ts": "^0.3.5",
     "spdx-expression-parse": "^3.0.1",
     "xmlbuilder2": "^3.0.2"
   },
