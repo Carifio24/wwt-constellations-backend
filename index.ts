@@ -11,6 +11,7 @@ import session from "express-session";
 
 import { Config, State } from "./globals.js";
 import { makeCheckAuthMiddleware } from "./auth.js";
+import { initializeFeatureEndpoints } from "./features.js";
 import { initializeHandleEndpoints } from "./handles.js";
 import { initializeImageEndpoints } from "./images.js";
 import { initializeSceneEndpoints } from "./scenes.js";
@@ -99,6 +100,7 @@ state.app.get("/", (_req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
 
+initializeFeatureEndpoints(state);
 initializeHandleEndpoints(state);
 initializeImageEndpoints(state);
 initializeSceneEndpoints(state);

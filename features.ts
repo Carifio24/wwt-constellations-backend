@@ -57,7 +57,6 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.post(
     "/feature",
-    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
 
       const maybe = FeatureCreation.decode(req.body);
@@ -93,7 +92,6 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.get(
     "/feature/:date",
-    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const date = new Date(req.params.date);
       if (isNaN(date.getTime())) {
@@ -134,10 +132,9 @@ export function initializeFeatureEndpoints(state: State) {
 
     state.app.get(
       "/features",
-      requireSuperuser,
       async (req: JwtRequest, res: Response) => {
-        const startDate = new Date(req.query.start_date as string);
-        const endDate = new Date(req.query.end_date as string);
+        const startDate = new Date(Number(req.query.start_date));
+        const endDate = new Date(Number(req.query.end_date));
 
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
           res.status(400).json({
