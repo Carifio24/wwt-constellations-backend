@@ -13,6 +13,16 @@ export interface MongoSceneFeature {
   feature_time: Date;
 }
 
+export interface MongoSceneFeatureQueue {
+  scene_ids: ObjectId[];
+}
+
+export interface HydratedSceneFeature {
+  id?: ObjectId;
+  scene: Record<string, any>;
+  feature_time: Date;
+}
+
 function timeStrippedDate(date: Date): Date {
   const day = new Date(date);
   day.setHours(0, 0, 0, 0);
@@ -40,6 +50,20 @@ export async function getFeaturesForRange(state: State, startDate: Date, endDate
       { feature_time: { "$lt": endDate } }
     ]
   });
+}
+
+async function hydratedFeature(state: State, feature: WithId<MongoSceneFeature>, req: JwtRequest): HydratedSceneFeature {
+  const scene = await state.scenes.findOne({ "_id": feature.scene_id });
+  if (scene === null) {
+    throw new Error(`Database consistency failure, feature ${feature._id} missing scene ${feature.scene_id}`);
+  }
+
+  const sceneJson = await sceneToJson(scene, state, req.session);
+  return {
+    id: feature._id,
+    feature_time: feature.feature_time,
+    scene: sceneJson
+  };
 }
 
 export function initializeFeatureEndpoints(state: State) {
@@ -111,21 +135,11 @@ export function initializeFeatureEndpoints(state: State) {
         return;
       }
 
-      const scene = await state.scenes.findOne({ "_id": feature.scene_id });
-      if (scene === null) {
-          throw new Error(`Database consistency failure, feature ${feature._id} missing scene ${feature.scene_id}`);
-      }
-
-      const sceneJSON = await sceneToJson(scene, state, req.session);
-      const featureHydrated = {
-        _id: feature._id,
-        feature_time: feature.feature_time,
-        scene: sceneJSON
-      };
+      const hydrated = hydratedFeature(state, feature, req);
       
       res.json({
         error: false,
-        feature: featureHydrated
+        feature: hydrated 
       });
 
     });
@@ -143,6 +157,47 @@ export function initializeFeatureEndpoints(state: State) {
           });
           return;
         }
+
+        const features = await getFeaturesForRange(state, startDate, endDate);
+        const hydratedFeatures: HydratedSceneFeature[] = [];
+        for await (const feature of features) {
+          hydratedFeatures.push(hydratedFeature(state, feature, req));
+        }
+
+        res.json({
+          error: false,
+          features: hydratedFeatures
+        });
       });
+
+      state.app.get(
+        "/features/queue-next",
+        async (req: JwtRequest, res: Response) => {
+          const queueDoc = await state.featureQueue.findOne();
+          const sceneIDs = queueDoc?.scene_ids ?? [];
+          if (sceneIDs.length === 0) {
+            res.status(500).json({
+              error: true,
+              message: "No scene present in queue"
+            });
+            return;
+          }
+          const hydratedFeatures: HydratedSceneFeature[] = [];
+          const id = sceneIDs[0];
+          
+          const scene = await state.scenes.findOne({ "_id": id });
+          if (scene === null) {
+            throw new Error(`Database consistency failure, feature queue missing scene ${id}`);
+          }
+          const sceneJson = await sceneToJson(scene, state, req.session);
+          const date = new Date();
+          date.setUTCHours(0, 0, 0, 0);
+
+          hydratedFeatures.push({
+            feature_time: date,
+            scene: sceneJson
+          });
+        });
+
 
 }
