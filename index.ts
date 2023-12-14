@@ -93,6 +93,7 @@ const state = new State(
   database.collection("handles"),
   database.collection("events"),
   database.collection("features"),
+  database.collection("featureQueue"),
   database.collection("tessellations"),
 );
 
