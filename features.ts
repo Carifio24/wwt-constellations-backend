@@ -3,7 +3,7 @@ import { isLeft } from "fp-ts/lib/Either.js";
 import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
-import { FindCursor, ObjectId, WithId } from "mongodb";
+import { FindCursor, ModifyResult, ObjectId, WithId } from "mongodb";
 
 import { State } from "./globals.js";
 import { sceneToJson } from "./scenes.js";
@@ -49,6 +49,13 @@ export async function getFeaturesForRange(state: State, startDate: Date, endDate
       { feature_time: { "$lt": endDate } }
     ]
   });
+}
+
+export async function tryPopFromFeatureQueue(state: State): Promise<ModifyResult<MongoSceneFeatureQueue>> {
+  return state.featureQueue.findOneAndUpdate(
+    { queue: true },
+    { "$pop": { "scene_ids": -1 } }  // -1 pops the first element: https://www.mongodb.com/docs/manual/reference/operator/update/pop/
+  );
 }
 
 async function hydratedFeature(state: State, feature: WithId<MongoSceneFeature>, req: JwtRequest): Promise<HydratedSceneFeature> {
@@ -276,10 +283,7 @@ export function initializeFeatureEndpoints(state: State) {
   state.app.post(
     "/features/pop",
     async (req: JwtRequest, res: Response) => {
-      const result = await state.featureQueue.findOneAndUpdate(
-        { queue: true },
-        { "$pop": { "scene_ids": 1 } }  // -1 pops the first element: https://www.mongodb.com/docs/manual/reference/operator/update/pop/
-      );
+      const result = await tryPopFromFeatureQueue(state);
 
       const queueDoc = result.value;
       if (queueDoc === null) {

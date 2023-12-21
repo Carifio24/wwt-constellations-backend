@@ -10,12 +10,13 @@ import { Request as JwtRequest } from "express-jwt";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { isLeft } from "fp-ts/lib/Either.js";
-import { AnyBulkWriteOperation, ObjectId } from "mongodb";
+import { AnyBulkWriteOperation, ObjectId, WithId } from "mongodb";
 
-import { constructFeed } from "./algorithm.js";
+import { constructFeed, FeedConstructionParams } from "./algorithm.js";
 import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 import { createGlobalTessellation } from "./tessellation.js";
+import { getFeaturesForDate, tryPopFromFeatureQueue } from "./features.js";
 
 export function initializeSuperuserEndpoints(state: State) {
   const amISuperuser = (req: JwtRequest) => {
@@ -194,8 +195,30 @@ export function initializeSuperuserEndpoints(state: State) {
         return;
       }
 
-      const initialScene = initialSceneID ?
-        await state.scenes.findOne({ "_id": initialSceneID }) : null;
+      let initialScene: WithId<MongoScene> | null = null;
+      if (initialSceneID === null) {
+        // Basic implementation for now:
+        // If no initial ID is given in the request, then take the
+        // either the first featured scene for the given day, or the first scene
+        // in the feature queue if there are no features that day.
+        // We can make this better once we have the scheduler set up
+        //
+        // NB: Once the scheduler is set up, we can avoid any sort of
+        // fiddly date logic by just passing in the ID of the desired
+        // scene in the request (in the scheduled job)
+        const features = await getFeaturesForDate(state, new Date());
+        const firstFeature = await features.next();
+        if (firstFeature !== null) {
+          initialSceneID = firstFeature.scene_id;
+        } else {
+          const result = await tryPopFromFeatureQueue(state);
+          const queueDoc = result.value;
+          initialSceneID = queueDoc?.scene_ids[0] ?? null;
+        }
+      }
+      if (initialSceneID !== null) {
+        initialScene = await state.scenes.findOne({ "_id": new ObjectId(initialSceneID) });
+      }
 
       const scenes = await state.scenes.find({ published: true }).toArray();
       const orderedFeed = constructFeed({ scenes, initialScene });
