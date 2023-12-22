@@ -34,12 +34,7 @@ export async function getFeaturesForDate(state: State, date: Date): Promise<Find
   const nextDay = new Date(day);
   nextDay.setDate(nextDay.getDate() + 1);
 
-  return state.features.find({
-    "$and": [
-      { feature_time: { "$gte": day } },
-      { feature_time: { "$lt": nextDay } } 
-    ]
-  });
+  return getFeaturesForRange(state, day, nextDay);
 }
 
 export async function getFeaturesForRange(state: State, startDate: Date, endDate: Date) {
