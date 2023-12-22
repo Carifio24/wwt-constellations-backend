@@ -395,12 +395,9 @@ __metadata:
     fp-ts: ^2.13
     geojson: ^0.5.0
     io-ts: ^2.2
-    io-ts-types: ^0.5.19
     jsdom: ^22.0.0
     jwks-rsa: ^3.0
     mongodb: ^5.0.1
-    monocle-ts: ^2.3.13
-    newtype-ts: ^0.3.5
     spdx-expression-parse: ^3.0.1
     typescript: ^4.9.4
     xmlbuilder2: ^3.0.2
@@ -1175,18 +1172,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"io-ts-types@npm:^0.5.19":
-  version: 0.5.19
-  resolution: "io-ts-types@npm:0.5.19"
-  peerDependencies:
-    fp-ts: ^2.0.0
-    io-ts: ^2.0.0
-    monocle-ts: ^2.0.0
-    newtype-ts: ^0.3.2
-  checksum: 4cf8688b9fd3878bebc332f9cdf612e72ce45bcc8ab4a534d413a4f80564458482bc1c86eed997ca566e65ac85790d3c7a8ccb511f8c17108cd647e070db7790
-  languageName: node
-  linkType: hard
-
 "io-ts@npm:^2.2":
   version: 2.2.21
   resolution: "io-ts@npm:2.2.21"
@@ -1535,15 +1520,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"monocle-ts@npm:^2.3.13":
-  version: 2.3.13
-  resolution: "monocle-ts@npm:2.3.13"
-  peerDependencies:
-    fp-ts: ^2.5.0
-  checksum: dddfa5706fe1fdb068606f5ac5215a00e723d155407de491bb53591264e281ec0ea1735759db93686d9daf676b105660bf2c656ebcd51626a4bfbb8de9accb3c
-  languageName: node
-  linkType: hard
-
 "ms@npm:2.0.0":
   version: 2.0.0
   resolution: "ms@npm:2.0.0"
@@ -1569,16 +1545,6 @@ __metadata:
   version: 0.6.3
   resolution: "negotiator@npm:0.6.3"
   checksum: b8ffeb1e262eff7968fc90a2b6767b04cfd9842582a9d0ece0af7049537266e7b2506dfb1d107a32f06dd849ab2aea834d5830f7f4d0e5cb7d36e1ae55d021d9
-  languageName: node
-  linkType: hard
-
-"newtype-ts@npm:^0.3.5":
-  version: 0.3.5
-  resolution: "newtype-ts@npm:0.3.5"
-  peerDependencies:
-    fp-ts: ^2.0.0
-    monocle-ts: ^2.0.0
-  checksum: 3168c0386313156f4ecf9160eec48d5506aa372d3406f6a05fde9f75b8f9549b149dea53574e9b2f201190c01fe49af8c9554481b319f0b616a4413f89af3d16
   languageName: node
   linkType: hard
 
