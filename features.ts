@@ -281,7 +281,7 @@ export function initializeFeatureEndpoints(state: State) {
     });
 
   state.app.post(
-    "/features/pop",
+    "/features/queue/pop",
     async (req: JwtRequest, res: Response) => {
       const result = await tryPopFromFeatureQueue(state);
 
