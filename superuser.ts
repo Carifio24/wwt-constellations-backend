@@ -16,7 +16,7 @@ import { constructFeed, FeedConstructionParams } from "./algorithm.js";
 import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 import { createGlobalTessellation } from "./tessellation.js";
-import { getFeaturesForDate, tryPopFromFeatureQueue } from "./features.js";
+import { getFeaturesForDate, nextQueuedScene, tryPopFromFeatureQueue } from "./features.js";
 
 export function initializeSuperuserEndpoints(state: State) {
   const amISuperuser = (req: JwtRequest) => {
@@ -211,9 +211,7 @@ export function initializeSuperuserEndpoints(state: State) {
         if (firstFeature !== null) {
           initialSceneID = firstFeature.scene_id;
         } else {
-          const result = await tryPopFromFeatureQueue(state);
-          const queueDoc = result.value;
-          initialSceneID = queueDoc?.scene_ids[0] ?? null;
+          initialSceneID = await nextQueuedScene(state);
         }
       }
       if (initialSceneID !== null) {
