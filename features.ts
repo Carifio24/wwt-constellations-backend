@@ -368,11 +368,9 @@ export function initializeFeatureEndpoints(state: State) {
         return;
       }
 
-      const newQueue = queueDoc.scene_ids;
-      newQueue.push(objectId);
       const updateResult = await state.featureQueue.updateOne(
         { queue: true },
-        { scene_ids: newQueue }
+        { "$pull": { scene_ids: objectId } }
       );
       
       if (updateResult.modifiedCount === 0) {
