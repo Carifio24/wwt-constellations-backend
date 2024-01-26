@@ -37,7 +37,7 @@ export async function getFeaturesForDate(state: State, date: Date): Promise<Find
   return getFeaturesForRange(state, day, nextDay);
 }
 
-export async function getFeaturesForRange(state: State, startDate: Date, endDate: Date) {
+export async function getFeaturesForRange(state: State, startDate: Date, endDate: Date): Promise<FindCursor<WithId<MongoSceneFeature>>> {
   return state.features.find({
     "$and": [
       { feature_time: { "$gte": startDate } },
@@ -46,6 +46,13 @@ export async function getFeaturesForRange(state: State, startDate: Date, endDate
   });
 }
 
+/*
+ * Note that this function will return (a Promise resolving to) the "original" document, before the pop operation
+ * has occurred.
+ * See https://mongodb.github.io/node-mongodb-native/6.3/classes/Collection.html#findOneAndUpdate
+ * along with
+ * https://mongodb.github.io/node-mongodb-native/6.3/interfaces/FindOneAndUpdateOptions.html#returnDocument
+ */
 export async function tryPopFromFeatureQueue(state: State): Promise<ModifyResult<MongoSceneFeatureQueue>> {
   return state.featureQueue.findOneAndUpdate(
     { queue: true },
@@ -182,14 +189,6 @@ export function initializeFeatureEndpoints(state: State) {
     async (req: JwtRequest, res: Response) => {
       const queueDoc = await state.featureQueue.findOne();
       const sceneIDs = queueDoc?.scene_ids ?? [];
-      if (sceneIDs.length === 0) {
-        res.status(500).json({
-          error: true,
-          message: "No scene present in queue",
-        });
-        return;
-      }
-
       const scenes: Record<string, any>[] = [];
       for (const id of sceneIDs) {
         const scene = await state.scenes.findOne({ "_id": new ObjectId(id) });
@@ -230,6 +229,9 @@ export function initializeFeatureEndpoints(state: State) {
         return;
       }
 
+      // Note that this method fully replaces the queue, rather than extending it. This
+      // behavior makes it convenient to implement drag-n-drop reordering in the
+      // queue management UI.
       const result = await state.featureQueue.updateOne(
         { queue: true },
         { "$set": { scene_ids: objectIDs } },
