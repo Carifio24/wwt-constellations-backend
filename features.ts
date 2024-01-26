@@ -23,6 +23,10 @@ export interface HydratedSceneFeature {
   feature_time: Date;
 }
 
+const QueueRequestBody = t.type({
+  scene_ids: t.array(t.string),
+});
+
 function timeStrippedDate(date: Date): Date {
   const day = new Date(date);
   day.setHours(0, 0, 0, 0);
@@ -140,7 +144,7 @@ export function initializeFeatureEndpoints(state: State) {
   state.app.get(
     "/features/:date",
     async (req: JwtRequest, res: Response) => {
-      const date = new Date(req.params.date);
+      const date = new Date(Number(req.params.date));
       if (isNaN(date.getTime())) {
         res.status(400).json({
           error: true,
@@ -215,16 +219,14 @@ export function initializeFeatureEndpoints(state: State) {
   state.app.post(
     "/features/queue",
     async (req: JwtRequest, res: Response) => {
-      const ids = req.body.scene_ids;
-      const valid = Array.isArray(ids) && ids.every(id => typeof id === "string");
-      if (!valid) {
-        res.status(400).json({
-          error: true,
-          message: "Scene IDs should be an array of strings",
-        });
+      const maybe = QueueRequestBody.decode(req.body);
+      if (isLeft(maybe)) {
+        res.statusCode = 400;
+        res.json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
         return;
       }
 
+      const ids = maybe.right.scene_ids;
       const objectIDs = ids.map((id: string) => new ObjectId(id));
       const scenes = await state.scenes.find({ "_id": { "$in" : objectIDs } }).toArray();
       if (scenes.length !== objectIDs.length) {
