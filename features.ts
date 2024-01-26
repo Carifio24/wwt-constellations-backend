@@ -33,7 +33,7 @@ function timeStrippedDate(date: Date): Date {
   return day;
 }
 
-export async function getFeaturesForDate(state: State, date: Date): Promise<FindCursor<WithId<MongoSceneFeature>>> {
+export function getFeaturesForDate(state: State, date: Date): Promise<FindCursor<WithId<MongoSceneFeature>>> {
   const day = timeStrippedDate(date);
   const nextDay = new Date(day);
   nextDay.setDate(nextDay.getDate() + 1);
