@@ -1,11 +1,12 @@
 import * as t from "io-ts";
 import { isLeft } from "fp-ts/lib/Either.js";
 import { PathReporter } from "io-ts/lib/PathReporter.js";
-import { Response } from "express";
+import { RequestHandler, Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
 import { FindCursor, ModifyResult, ObjectId, WithId } from "mongodb";
 
 import { State } from "./globals.js";
+import { makeRequireKeyOrSuperuserMiddleware, requestLoggingMiddleware } from "./middleware.js";
 import { sceneToJson } from "./scenes.js";
 
 export interface MongoSceneFeature {
@@ -92,10 +93,11 @@ export function initializeFeatureEndpoints(state: State) {
 
   type FeatureCreationT = t.TypeOf<typeof FeatureCreation>;
 
-  // TODO: This is redundant with the middleware in superuser.ts
-  const requireSuperuser = (req: JwtRequest) => {
-    return req.auth && req.auth.sub === state.config.superuserAccountId;
-  };
+  // Use authorization (superuser or magic-key based) and logging middleware
+  // for all 'feature' routes
+  const authorizationMiddleware = makeRequireKeyOrSuperuserMiddleware(state);
+  const featureMiddlewares: RequestHandler[] = [authorizationMiddleware, requestLoggingMiddleware];
+  state.app.use("/feature*", ...featureMiddlewares);
 
   state.app.post(
     "/feature",
@@ -139,33 +141,6 @@ export function initializeFeatureEndpoints(state: State) {
       }
     }
   );
-
-
-  state.app.get(
-    "/features/:date",
-    async (req: JwtRequest, res: Response) => {
-      const date = new Date(Number(req.params.date));
-      if (isNaN(date.getTime())) {
-        res.status(400).json({
-          error: true,
-          message: "Invalid date specified",
-        });
-        return;
-      }
-
-      const features = await getFeaturesForDate(state, date);
-      const hydratedFeatures: HydratedSceneFeature[] = [];
-      for await (const feature of features) {
-        const hydrated = await hydratedFeature(state, feature, req);
-        hydratedFeatures.push(hydrated);
-      }
-
-      res.json({
-        error: false,
-        features: hydratedFeatures
-      });
-
-    });
 
   state.app.get(
     "/features",
@@ -392,6 +367,32 @@ export function initializeFeatureEndpoints(state: State) {
           message: `Scene ${id} removed from queue`,
         });
       }
+
+    });
+
+  state.app.get(
+    "/features/:date",
+    async (req: JwtRequest, res: Response) => {
+      const date = new Date(Number(req.params.date));
+      if (isNaN(date.getTime())) {
+        res.status(400).json({
+          error: true,
+          message: "Invalid date specified",
+        });
+        return;
+      }
+
+      const features = await getFeaturesForDate(state, date);
+      const hydratedFeatures: HydratedSceneFeature[] = [];
+      for await (const feature of features) {
+        const hydrated = await hydratedFeature(state, feature, req);
+        hydratedFeatures.push(hydrated);
+      }
+
+      res.json({
+        error: false,
+        features: hydratedFeatures
+      });
 
     });
 

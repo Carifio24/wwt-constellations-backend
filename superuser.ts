@@ -16,10 +16,10 @@ import { constructFeed } from "./algorithm.js";
 import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 import { createGlobalTessellation } from "./tessellation.js";
-import { getFeaturesForDate, nextQueuedScene, tryPopFromFeatureQueue } from "./features.js";
+import { getFeaturesForDate, nextQueuedScene } from "./features.js";
 
-function amISuperuser(req: JwtRequest, state: State) {
-  return req.auth && req.auth.sub === state.config.superuserAccountId;
+export function amISuperuser(req: JwtRequest, state: State): boolean {
+  return req.auth !== undefined && req.auth.sub === state.config.superuserAccountId;
 }
 
 export function makeRequireSuperuserMiddleware(state: State): RequestHandler {

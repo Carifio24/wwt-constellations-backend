@@ -14,7 +14,6 @@ import { makeCheckAuthMiddleware } from "./auth.js";
 import { initializeFeatureEndpoints } from "./features.js";
 import { initializeHandleEndpoints } from "./handles.js";
 import { initializeImageEndpoints } from "./images.js";
-import { requestLoggingMiddleware, makeVerifyKeyMiddleware } from "./middleware.js";
 import { initializeSceneEndpoints } from "./scenes.js";
 import { initializeSuperuserEndpoints } from "./superuser.js";
 import { initializeSessionEndpoints } from "./session.js";
@@ -37,8 +36,6 @@ app.use(cors({
 
 app.use(bodyParser.json());
 
-app.use(requestLoggingMiddleware);
-app.use(makeVerifyKeyMiddleware(config));
 app.use(makeCheckAuthMiddleware(config));
 
 // Before we can set up the session handling, we need to set up our connection
