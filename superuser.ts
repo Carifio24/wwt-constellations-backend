@@ -16,7 +16,7 @@ import { constructFeed } from "./algorithm.js";
 import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 import { createGlobalTessellation } from "./tessellation.js";
-import { getFeaturesForDate, nextQueuedScene } from "./features.js";
+import { getFeaturesForDate, nextQueuedSceneId } from "./features.js";
 
 export function amISuperuser(req: JwtRequest, state: State): boolean {
   return req.auth !== undefined && req.auth.sub === state.config.superuserAccountId;
@@ -217,7 +217,7 @@ export function initializeSuperuserEndpoints(state: State) {
         if (firstFeature !== null) {
           initialSceneID = firstFeature.scene_id;
         } else {
-          initialSceneID = await nextQueuedScene(state);
+          initialSceneID = await nextQueuedSceneId(state);
         }
       }
       if (initialSceneID !== null) {

@@ -79,7 +79,7 @@ async function hydratedFeature(state: State, feature: WithId<MongoSceneFeature>,
   };
 }
 
-export async function nextQueuedScene(state: State): Promise<ObjectId | null> {
+export async function nextQueuedSceneId(state: State): Promise<ObjectId | null> {
   const result = await tryPopFromFeatureQueue(state);
   const queueDoc = result.value;
   return queueDoc?.scene_ids[0] ?? null;
