@@ -12,16 +12,32 @@ import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { isLeft } from "fp-ts/lib/Either.js";
 import { AnyBulkWriteOperation, ObjectId, WithId } from "mongodb";
 
-import { constructFeed, FeedConstructionParams } from "./algorithm.js";
+import { constructFeed } from "./algorithm.js";
 import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 import { createGlobalTessellation } from "./tessellation.js";
 import { getFeaturesForDate, nextQueuedScene, tryPopFromFeatureQueue } from "./features.js";
 
-export function initializeSuperuserEndpoints(state: State) {
-  const amISuperuser = (req: JwtRequest) => {
-    return req.auth && req.auth.sub === state.config.superuserAccountId;
+function amISuperuser(req: JwtRequest, state: State) {
+  return req.auth && req.auth.sub === state.config.superuserAccountId;
+}
+
+export function makeRequireSuperuserMiddleware(state: State): RequestHandler {
+  return (req: JwtRequest, res: Response, next: NextFunction) => {
+    if (!amISuperuser(req, state)) {
+      res.status(403).json({
+        error: true,
+        message: "Forbidden"
+      });
+    } else {
+      console.warn("executing superuser API call:", req.path);
+      next();
+    }
   };
+}
+
+
+export function initializeSuperuserEndpoints(state: State) {
 
   // GET /misc/amisuperuser
   //
@@ -31,22 +47,12 @@ export function initializeSuperuserEndpoints(state: State) {
   // functionality.
   state.app.get("/misc/amisuperuser", async (req: JwtRequest, res: Response) => {
     res.json({
-      result: amISuperuser(req),
+      result: amISuperuser(req, state),
     });
   });
 
   // A middleware to require that the request comes from the superuser account.
-  const requireSuperuser: RequestHandler = (req: JwtRequest, res: Response, next: NextFunction) => {
-    if (!amISuperuser(req)) {
-      res.status(403).json({
-        error: true,
-        message: "Forbidden"
-      });
-    } else {
-      console.warn("executing superuser API call:", req.path);
-      next();
-    }
-  }
+  const requireSuperuser = makeRequireSuperuserMiddleware(state);
 
   // POST /misc/config-database - Set up some configuration of our backing
   // database.
