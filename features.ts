@@ -370,30 +370,4 @@ export function initializeFeatureEndpoints(state: State) {
 
     });
 
-  state.app.get(
-    "/features/:date",
-    async (req: JwtRequest, res: Response) => {
-      const date = new Date(Number(req.params.date));
-      if (isNaN(date.getTime())) {
-        res.status(400).json({
-          error: true,
-          message: "Invalid date specified",
-        });
-        return;
-      }
-
-      const features = await getFeaturesForDate(state, date);
-      const hydratedFeatures: HydratedSceneFeature[] = [];
-      for await (const feature of features) {
-        const hydrated = await hydratedFeature(state, feature, req);
-        hydratedFeatures.push(hydrated);
-      }
-
-      res.json({
-        error: false,
-        features: hydratedFeatures
-      });
-
-    });
-
 }
