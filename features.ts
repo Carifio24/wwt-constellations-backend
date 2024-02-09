@@ -11,7 +11,7 @@ import { sceneToJson } from "./scenes.js";
 import { makeRequireSuperuserMiddleware } from "./superuser.js";
 
 export interface MongoSceneFeature {
-  scene_id: ObjectId; 
+  scene_id: ObjectId;
   feature_time: Date;
 }
 
@@ -182,6 +182,7 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.get(
     "/features/queue",
+    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const queueDoc = await state.featureQueue.findOne();
       const sceneIDs = queueDoc?.scene_ids ?? [];
@@ -215,7 +216,7 @@ export function initializeFeatureEndpoints(state: State) {
 
       const ids = maybe.right.scene_ids;
       const objectIDs = ids.map((id: string) => new ObjectId(id));
-      const scenes = await state.scenes.find({ "_id": { "$in" : objectIDs } }).toArray();
+      const scenes = await state.scenes.find({ "_id": { "$in": objectIDs } }).toArray();
       if (scenes.length !== objectIDs.length) {
         res.status(400).json({
           error: true,
@@ -260,7 +261,7 @@ export function initializeFeatureEndpoints(state: State) {
         return;
       }
       const id = sceneIDs[0];
-      
+
       const scene = await state.scenes.findOne({ "_id": new ObjectId(id) });
       if (scene === null) {
         throw new Error(`Database consistency failure, feature queue missing scene ${id}`);
@@ -373,7 +374,7 @@ export function initializeFeatureEndpoints(state: State) {
         { queue: true },
         { "$pull": { scene_ids: objectId } }
       );
-      
+
       if (updateResult.modifiedCount === 0) {
         res.status(500).json({
           error: true,
