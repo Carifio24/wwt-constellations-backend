@@ -10,17 +10,35 @@ import { Request as JwtRequest } from "express-jwt";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { isLeft } from "fp-ts/lib/Either.js";
-import { AnyBulkWriteOperation, ObjectId } from "mongodb";
+import { AnyBulkWriteOperation, ObjectId, WithId } from "mongodb";
 
 import { constructFeed } from "./algorithm.js";
 import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 import { createGlobalTessellation } from "./tessellation.js";
+import { getCurrentFeaturedSceneID, getFeaturesForDate, nextQueuedSceneId } from "./features.js";
+import { makeRequireKeyOrSuperuserMiddleware, requestLoggingMiddleware } from "./middleware.js";
+
+export function amISuperuser(req: JwtRequest, state: State): boolean {
+  return req.auth !== undefined && req.auth.sub === state.config.superuserAccountId;
+}
+
+export function makeRequireSuperuserMiddleware(state: State): RequestHandler {
+  return (req: JwtRequest, res: Response, next: NextFunction) => {
+    if (!amISuperuser(req, state)) {
+      res.status(403).json({
+        error: true,
+        message: "Forbidden"
+      });
+    } else {
+      console.warn("executing superuser API call:", req.path);
+      next();
+    }
+  };
+}
+
 
 export function initializeSuperuserEndpoints(state: State) {
-  const amISuperuser = (req: JwtRequest) => {
-    return req.auth && req.auth.sub === state.config.superuserAccountId;
-  };
 
   // GET /misc/amisuperuser
   //
@@ -30,22 +48,13 @@ export function initializeSuperuserEndpoints(state: State) {
   // functionality.
   state.app.get("/misc/amisuperuser", async (req: JwtRequest, res: Response) => {
     res.json({
-      result: amISuperuser(req),
+      result: amISuperuser(req, state),
     });
   });
 
   // A middleware to require that the request comes from the superuser account.
-  const requireSuperuser: RequestHandler = (req: JwtRequest, res: Response, next: NextFunction) => {
-    if (!amISuperuser(req)) {
-      res.status(403).json({
-        error: true,
-        message: "Forbidden"
-      });
-    } else {
-      console.warn("executing superuser API call:", req.path);
-      next();
-    }
-  }
+  const requireSuperuser = makeRequireSuperuserMiddleware(state);
+  const requireKeyOrSuperuser = makeRequireKeyOrSuperuserMiddleware(state);
 
   // POST /misc/config-database - Set up some configuration of our backing
   // database.
@@ -182,7 +191,7 @@ export function initializeSuperuserEndpoints(state: State) {
 
   state.app.post(
     "/misc/update-timeline",
-    requireSuperuser,
+    requireKeyOrSuperuser,
     async (req: JwtRequest, res: Response) => {
       const initialIDInput = req.query.initial_id;
       let initialSceneID: ObjectId | null;
@@ -194,8 +203,14 @@ export function initializeSuperuserEndpoints(state: State) {
         return;
       }
 
-      const initialScene = initialSceneID ?
-        await state.scenes.findOne({ "_id": initialSceneID }) : null;
+      if (initialSceneID === null) {
+        initialSceneID = await getCurrentFeaturedSceneID(state);
+      }
+
+      let initialScene: WithId<MongoScene> | null = null;
+      if (initialSceneID !== null) {
+        initialScene = await state.scenes.findOne({ "_id": new ObjectId(initialSceneID) });
+      }
 
       const scenes = await state.scenes.find({ published: true }).toArray();
       const orderedFeed = constructFeed({ scenes, initialScene });

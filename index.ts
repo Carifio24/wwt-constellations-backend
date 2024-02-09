@@ -11,6 +11,7 @@ import session from "express-session";
 
 import { Config, State } from "./globals.js";
 import { makeCheckAuthMiddleware } from "./auth.js";
+import { initializeFeatureEndpoints } from "./features.js";
 import { initializeHandleEndpoints } from "./handles.js";
 import { initializeImageEndpoints } from "./images.js";
 import { initializeSceneEndpoints } from "./scenes.js";
@@ -18,7 +19,10 @@ import { initializeSuperuserEndpoints } from "./superuser.js";
 import { initializeSessionEndpoints } from "./session.js";
 import { initializeTessellationEndpoints } from "./tessellation.js";
 
+import { setLogLevel } from "@azure/logger";
+
 const config = new Config();
+setLogLevel(config.logLevel);
 
 // Start setting up the server and global middleware
 const app: Express = express();
@@ -91,6 +95,8 @@ const state = new State(
   database.collection("images"),
   database.collection("handles"),
   database.collection("events"),
+  database.collection("features"),
+  database.collection("featureQueue"),
   database.collection("tessellations"),
 );
 
@@ -98,6 +104,7 @@ state.app.get("/", (_req: Request, res: Response) => {
   res.send("Express + TypeScript Server");
 });
 
+initializeFeatureEndpoints(state);
 initializeHandleEndpoints(state);
 initializeImageEndpoints(state);
 initializeSceneEndpoints(state);

@@ -1,12 +1,14 @@
 import { Express } from "express";
 import dotenv from "dotenv";
 import { Collection } from "mongodb";
+import { AzureLogLevel } from "@azure/logger";
 
 import { MongoHandle } from "./handles";
 import { MongoImage } from "./images";
 import { MongoScene } from "./scenes";
 import { MongoEvent } from "./events";
 import { MongoTessellation } from "./tessellation";
+import { MongoSceneFeature, MongoSceneFeatureQueue } from "./features";
 
 export class Config {
   // The port number on which the server will listen.
@@ -43,6 +45,12 @@ export class Config {
   // value, then no one is superuser.
   superuserAccountId: string;
 
+  // The logging level to use through the application.
+  logLevel: AzureLogLevel;
+
+  // A "secret key" used to authenticate other Constellations services
+  frontendAutonomousKey: string;
+
   constructor() {
     dotenv.config();
 
@@ -71,6 +79,14 @@ export class Config {
     }
     this.previewerUrl = previewerUrl;
     this.superuserAccountId = process.env.CX_SUPERUSER_ACCOUNT_ID ?? "nosuperuser";
+
+    this.logLevel = process.env.CX_LOG_LEVEL as AzureLogLevel ?? "info";
+
+    const frontendKey = process.env.CX_FRONTEND_AUTONOMOUS_KEY;
+    if (frontendKey === undefined || frontendKey.trim().length < 1) {
+      throw new Error("must define $CX_FRONTEND_AUTONOMOUS_KEY");
+    }
+    this.frontendAutonomousKey = frontendKey;
   }
 }
 
@@ -81,6 +97,8 @@ export class State {
   images: Collection<MongoImage>;
   handles: Collection<MongoHandle>;
   events: Collection<MongoEvent>;
+  features: Collection<MongoSceneFeature>;
+  featureQueue: Collection<MongoSceneFeatureQueue>;
   tessellations: Collection<MongoTessellation>;
 
   constructor(
@@ -90,6 +108,8 @@ export class State {
     images: Collection<MongoImage>,
     handles: Collection<MongoHandle>,
     events: Collection<MongoEvent>,
+    features: Collection<MongoSceneFeature>,
+    featureQueue: Collection<MongoSceneFeatureQueue>,
     tessellations: Collection<MongoTessellation>,
   ) {
     this.config = config;
@@ -98,6 +118,8 @@ export class State {
     this.images = images;
     this.handles = handles;
     this.events = events;
+    this.features = features;
+    this.featureQueue = featureQueue;
     this.tessellations = tessellations;
   }
 }
