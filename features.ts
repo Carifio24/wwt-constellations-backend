@@ -8,6 +8,7 @@ import { FindCursor, ModifyResult, ObjectId, WithId } from "mongodb";
 import { State } from "./globals.js";
 import { makeRequireKeyOrSuperuserMiddleware, requestLoggingMiddleware } from "./middleware.js";
 import { sceneToJson } from "./scenes.js";
+import { makeRequireSuperuserMiddleware } from "./superuser.js";
 
 export interface MongoSceneFeature {
   scene_id: ObjectId; 
@@ -104,12 +105,12 @@ export function initializeFeatureEndpoints(state: State) {
 
   // Use authorization (superuser or magic-key based) and logging middleware
   // for all 'feature' routes
-  const authorizationMiddleware = makeRequireKeyOrSuperuserMiddleware(state);
-  const featureMiddlewares: RequestHandler[] = [authorizationMiddleware, requestLoggingMiddleware];
-  state.app.use("/feature*", ...featureMiddlewares);
+  const requireSuperuser = makeRequireSuperuserMiddleware(state);
+  const requireKeyOrSuperuser = makeRequireKeyOrSuperuserMiddleware(state);
 
   state.app.post(
     "/feature",
+    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
 
       const maybe = FeatureCreation.decode(req.body);
@@ -153,6 +154,7 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.get(
     "/features",
+    requireKeyOrSuperuser,
     async (req: JwtRequest, res: Response) => {
       const startDate = new Date(Number(req.query.start_date));
       const endDate = new Date(Number(req.query.end_date));
@@ -202,6 +204,7 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.post(
     "/features/queue",
+    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const maybe = QueueRequestBody.decode(req.body);
       if (isLeft(maybe)) {
@@ -244,6 +247,8 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.get(
     "/features/queue/next",
+    requestLoggingMiddleware,
+    requireKeyOrSuperuser,
     async (req: JwtRequest, res: Response) => {
       const queueDoc = await state.featureQueue.findOne({ queue: true });
       const sceneIDs = queueDoc?.scene_ids ?? [];
@@ -271,6 +276,8 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.post(
     "/features/queue/pop",
+    requestLoggingMiddleware,
+    requireKeyOrSuperuser,
     async (req: JwtRequest, res: Response) => {
       const result = await tryPopFromFeatureQueue(state);
 
@@ -294,6 +301,7 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.post(
     "/features/queue/:id",
+    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const id = req.params.id;
       const objectId = new ObjectId(id);
@@ -342,6 +350,7 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.delete(
     "/features/queue/:id",
+    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const id = req.params.id;
       const objectId = new ObjectId(id);

@@ -17,6 +17,7 @@ import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 import { createGlobalTessellation } from "./tessellation.js";
 import { getCurrentFeaturedSceneID, getFeaturesForDate, nextQueuedSceneId } from "./features.js";
+import { makeRequireKeyOrSuperuserMiddleware, requestLoggingMiddleware } from "./middleware.js";
 
 export function amISuperuser(req: JwtRequest, state: State): boolean {
   return req.auth !== undefined && req.auth.sub === state.config.superuserAccountId;
@@ -53,6 +54,7 @@ export function initializeSuperuserEndpoints(state: State) {
 
   // A middleware to require that the request comes from the superuser account.
   const requireSuperuser = makeRequireSuperuserMiddleware(state);
+  const requireKeyOrSuperuser = makeRequireKeyOrSuperuserMiddleware(state);
 
   // POST /misc/config-database - Set up some configuration of our backing
   // database.
@@ -189,7 +191,7 @@ export function initializeSuperuserEndpoints(state: State) {
 
   state.app.post(
     "/misc/update-timeline",
-    requireSuperuser,
+    requireKeyOrSuperuser,
     async (req: JwtRequest, res: Response) => {
       const initialIDInput = req.query.initial_id;
       let initialSceneID: ObjectId | null;
