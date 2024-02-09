@@ -22,13 +22,15 @@ function validConstellationsKey(req: JwtRequest, config: Config): boolean {
 export function makeRequireKeyOrSuperuserMiddleware(state: State): RequestHandler {
   return (req: JwtRequest, res: Response, next: NextFunction) => {
     const allowed = amISuperuser(req, state) || validConstellationsKey(req, state.config);
-    if (!allowed) {
+
+    if (allowed) {
+      console.warn("executing key||superuser API call:", req.path);
+      next();
+    } else {
       res.status(401).json({
         error: true,
-        message: "You must be a superuser or provide a valid Constellations key to use this endpoint"
+        message: "Unauthorized"
       });
-      return;
     }
-    next();
   };
 }
