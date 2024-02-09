@@ -83,7 +83,7 @@ export class Config {
     this.logLevel = process.env.CX_LOG_LEVEL as AzureLogLevel ?? "info";
 
     const frontendKey = process.env.CX_FRONTEND_AUTONOMOUS_KEY;
-    if (frontendKey === undefined) {
+    if (frontendKey === undefined || frontendKey.trim().length < 1) {
       throw new Error("must define $CX_FRONTEND_AUTONOMOUS_KEY");
     }
     this.frontendAutonomousKey = frontendKey;
