@@ -49,7 +49,7 @@ export class Config {
   logLevel: AzureLogLevel;
 
   // A "secret key" used to authenticate other Constellations services
-  constellationsKey: string;
+  frontendAutonomousKey: string;
 
   constructor() {
     dotenv.config();
@@ -80,13 +80,13 @@ export class Config {
     this.previewerUrl = previewerUrl;
     this.superuserAccountId = process.env.CX_SUPERUSER_ACCOUNT_ID ?? "nosuperuser";
 
-    this.logLevel = process.env.LOG_LEVEL as AzureLogLevel ?? "info";
+    this.logLevel = process.env.CX_LOG_LEVEL as AzureLogLevel ?? "info";
 
-    const constellationsKey = process.env.CX_KEY;
-    if (constellationsKey === undefined) {
-      throw new Error("must define $CX_KEY");
+    const frontendKey = process.env.CX_FRONTEND_AUTONOMOUS_KEY;
+    if (frontendKey === undefined) {
+      throw new Error("must define $CX_FRONTEND_AUTONOMOUS_KEY");
     }
-    this.constellationsKey = constellationsKey;
+    this.frontendAutonomousKey = frontendKey;
   }
 }
 

@@ -15,8 +15,8 @@ export function requestLoggingMiddleware(req: JwtRequest, _res: Response, next: 
 }
 
 function validConstellationsKey(req: JwtRequest, config: Config): boolean {
-  const cxKey = req.get("CX_KEY");
-  return cxKey === config.constellationsKey;
+  const cxFrontendKey = req.get("CX_FRONTEND_AUTONOMOUS_KEY");
+  return cxFrontendKey === config.frontendAutonomousKey;
 }
 
 export function makeRequireKeyOrSuperuserMiddleware(state: State): RequestHandler {
