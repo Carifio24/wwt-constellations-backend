@@ -85,6 +85,15 @@ export async function nextQueuedSceneId(state: State): Promise<ObjectId | null> 
   return queueDoc?.scene_ids[0] ?? null;
 }
 
+// If no initial ID is given in the request, then take the
+// either the first featured scene for the given day, or the first scene
+// in the feature queue if there are no features that day.
+export async function getCurrentFeaturedSceneID(state: State): Promise<ObjectId | null> {
+  const features = await getFeaturesForDate(state, new Date());
+  const firstFeature = await features.next();
+  return firstFeature?.scene_id ?? nextQueuedSceneId(state);
+}
+
 export function initializeFeatureEndpoints(state: State) {
   const FeatureCreation = t.type({
     scene_id: t.string,
