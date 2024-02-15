@@ -45,12 +45,6 @@ export class Config {
   // value, then no one is superuser.
   superuserAccountId: string;
 
-  // The logging level to use through the application.
-  logLevel: AzureLogLevel;
-
-  // A "secret key" used to authenticate other Constellations services
-  frontendAutonomousKey: string;
-
   constructor() {
     dotenv.config();
 
@@ -79,14 +73,6 @@ export class Config {
     }
     this.previewerUrl = previewerUrl;
     this.superuserAccountId = process.env.CX_SUPERUSER_ACCOUNT_ID ?? "nosuperuser";
-
-    this.logLevel = process.env.CX_LOG_LEVEL as AzureLogLevel ?? "info";
-
-    const frontendKey = process.env.CX_FRONTEND_AUTONOMOUS_KEY;
-    if (frontendKey === undefined || frontendKey.trim().length < 1) {
-      throw new Error("must define $CX_FRONTEND_AUTONOMOUS_KEY");
-    }
-    this.frontendAutonomousKey = frontendKey;
   }
 }
 

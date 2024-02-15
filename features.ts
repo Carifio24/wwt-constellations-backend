@@ -1,12 +1,11 @@
 import * as t from "io-ts";
 import { isLeft } from "fp-ts/lib/Either.js";
 import { PathReporter } from "io-ts/lib/PathReporter.js";
-import { RequestHandler, Response } from "express";
+import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
 import { FindCursor, ModifyResult, ObjectId, WithId } from "mongodb";
 
 import { State } from "./globals.js";
-import { makeRequireKeyOrSuperuserMiddleware, requestLoggingMiddleware } from "./middleware.js";
 import { sceneToJson } from "./scenes.js";
 import { makeRequireSuperuserMiddleware } from "./superuser.js";
 
@@ -103,10 +102,7 @@ export function initializeFeatureEndpoints(state: State) {
 
   type FeatureCreationT = t.TypeOf<typeof FeatureCreation>;
 
-  // Use authorization (superuser or magic-key based) and logging middleware
-  // for all 'feature' routes
   const requireSuperuser = makeRequireSuperuserMiddleware(state);
-  const requireKeyOrSuperuser = makeRequireKeyOrSuperuserMiddleware(state);
 
   state.app.post(
     "/feature",
@@ -154,7 +150,7 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.get(
     "/features",
-    requireKeyOrSuperuser,
+    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const startDate = new Date(Number(req.query.start_date));
       const endDate = new Date(Number(req.query.end_date));
@@ -248,8 +244,7 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.get(
     "/features/queue/next",
-    requestLoggingMiddleware,
-    requireKeyOrSuperuser,
+    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const queueDoc = await state.featureQueue.findOne({ queue: true });
       const sceneIDs = queueDoc?.scene_ids ?? [];
@@ -277,8 +272,7 @@ export function initializeFeatureEndpoints(state: State) {
 
   state.app.post(
     "/features/queue/pop",
-    requestLoggingMiddleware,
-    requireKeyOrSuperuser,
+    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const result = await tryPopFromFeatureQueue(state);
 

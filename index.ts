@@ -19,10 +19,7 @@ import { initializeSuperuserEndpoints } from "./superuser.js";
 import { initializeSessionEndpoints } from "./session.js";
 import { initializeTessellationEndpoints } from "./tessellation.js";
 
-import { setLogLevel } from "@azure/logger";
-
 const config = new Config();
-setLogLevel(config.logLevel);
 
 // Start setting up the server and global middleware
 const app: Express = express();
