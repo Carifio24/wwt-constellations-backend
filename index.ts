@@ -18,8 +18,12 @@ import { initializeSceneEndpoints } from "./scenes.js";
 import { initializeSuperuserEndpoints } from "./superuser.js";
 import { initializeSessionEndpoints } from "./session.js";
 import { initializeTessellationEndpoints } from "./tessellation.js";
+import { createDailyFeatureUpdateJob } from "./cron.js";
+
+import { setLogLevel } from "@azure/logger";
 
 const config = new Config();
+setLogLevel(config.logLevel);
 
 // Start setting up the server and global middleware
 const app: Express = express();
@@ -114,6 +118,17 @@ initializeTessellationEndpoints(state);
 (async () => {
   await dbpromise;
   console.log("Connected to database!");
+
+  const dailyUpdateJob = createDailyFeatureUpdateJob(state);
+  dailyUpdateJob.on("run", () => {
+    console.log(`Running daily update job at ${Date.now()}`);
+  });
+  dailyUpdateJob.on("canceled", () => {
+    console.error(`The daily update job has been canceled at ${Date.now()}!`);
+  });
+  dailyUpdateJob.on("error", () => {
+    console.error(`There was an error running the daily update job at ${Date.now()}`);
+  });
 
   app.listen(config.port, () => {
     console.log(

@@ -62,6 +62,8 @@ Environment variables:
   allowing you to rotate the secret periodically.
 - `CX_SUPERUSER_ACCOUNT_ID` sets the Keycloak account ID of an account that can
   perform some special administrative tasks.
+- `CX_LOG_LEVEL` sets the logging level for the application; default is "info".
+  Valid values, in order, are "verbose", "info", "warning", "error".
 
 [CORS]: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 

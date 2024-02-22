@@ -16,8 +16,7 @@ import { constructFeed } from "./algorithm.js";
 import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 import { createGlobalTessellation } from "./tessellation.js";
-import { getCurrentFeaturedSceneID, getFeaturesForDate, nextQueuedSceneId } from "./features.js";
-import { makeRequireKeyOrSuperuserMiddleware, requestLoggingMiddleware } from "./middleware.js";
+import { getCurrentFeaturedSceneID } from "./features.js";
 
 export function amISuperuser(req: JwtRequest, state: State): boolean {
   return req.auth !== undefined && req.auth.sub === state.config.superuserAccountId;
@@ -37,6 +36,31 @@ export function makeRequireSuperuserMiddleware(state: State): RequestHandler {
   };
 }
 
+export async function updateTimeline(state: State, initialSceneID: ObjectId | null): Promise<void> {
+  let initialScene: WithId<MongoScene> | null = null;
+  if (initialSceneID != null) {
+    initialScene = await state.scenes.findOne({ "_id": new ObjectId(initialSceneID) });
+  }
+
+  const scenes = await state.scenes.find({ published: true }).toArray();
+  const orderedFeed = constructFeed({ scenes, initialScene });
+  const operations: AnyBulkWriteOperation<MongoScene>[] = [];
+
+  orderedFeed.forEach((scene, index) => {
+    // The actual scoring value for each scene doesn't matter
+    // All we need is the index that tells us the order
+    const operation: AnyBulkWriteOperation<MongoScene> = {
+      updateOne: {
+        filter: { _id: scene._id },
+        update: { $set: { home_timeline_sort_key: index } }
+      }
+    };
+    operations.push(operation);
+  });
+
+  state.scenes.bulkWrite(operations);
+}
+
 
 export function initializeSuperuserEndpoints(state: State) {
 
@@ -54,7 +78,6 @@ export function initializeSuperuserEndpoints(state: State) {
 
   // A middleware to require that the request comes from the superuser account.
   const requireSuperuser = makeRequireSuperuserMiddleware(state);
-  const requireKeyOrSuperuser = makeRequireKeyOrSuperuserMiddleware(state);
 
   // POST /misc/config-database - Set up some configuration of our backing
   // database.
@@ -191,7 +214,7 @@ export function initializeSuperuserEndpoints(state: State) {
 
   state.app.post(
     "/misc/update-timeline",
-    requireKeyOrSuperuser,
+    requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const initialIDInput = req.query.initial_id;
       let initialSceneID: ObjectId | null;
@@ -207,28 +230,13 @@ export function initializeSuperuserEndpoints(state: State) {
         initialSceneID = await getCurrentFeaturedSceneID(state);
       }
 
-      let initialScene: WithId<MongoScene> | null = null;
-      if (initialSceneID !== null) {
-        initialScene = await state.scenes.findOne({ "_id": new ObjectId(initialSceneID) });
+      try {
+        await updateTimeline(state, initialSceneID);
+      } catch (err) {
+        res.json({ error: true, message: `error updating timeline: ${err}` });
+        return;
       }
 
-      const scenes = await state.scenes.find({ published: true }).toArray();
-      const orderedFeed = constructFeed({ scenes, initialScene });
-      const operations: AnyBulkWriteOperation<MongoScene>[] = [];
-
-      orderedFeed.forEach((scene, index) => {
-        // The actual scoring value for each scene doesn't matter
-        // All we need is the index that tells us the order
-        const operation: AnyBulkWriteOperation<MongoScene> = {
-          updateOne: {
-            filter: { _id: scene._id },
-            update: { $set: { home_timeline_sort_key: index } }
-          }
-        };
-        operations.push(operation);
-      });
-
-      state.scenes.bulkWrite(operations);
       res.json({ error: false });
     }
   );
