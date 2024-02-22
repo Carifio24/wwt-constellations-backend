@@ -32,7 +32,17 @@ export async function dailyFeatureSetup(state: State): Promise<Map<ObjectId, Job
           await updateTimeline(state, id);
         }.bind(null, state, feature._id)
       );
+      featureJob.on("run", () => {
+        console.log(`Ran timeline update job for feature ${feature._id} at ${new Date()}`);
+      });
+      featureJob.on("canceled", () => {
+        console.log(`The timeline update job for ${feature._id} was canceled at ${new Date()}!`);
+      });
+      featureJob.on("error", () => {
+        console.error(`There was an error running the timeline update job for ${feature._id} at ${new Date()}`);
+      });
       jobs.set(feature._id, featureJob);
+      console.log(`Scheduled job for feature ${feature._id} at ${date}`);
     }
   } else {
     const nextQueuedId = await tryPopNextQueuedSceneId(state);
@@ -45,7 +55,7 @@ export async function dailyFeatureSetup(state: State): Promise<Map<ObjectId, Job
 export function createDailyFeatureUpdateJob(state: State): Job {
   return scheduleJob(
     "Daily feature update job",
-    "59 23 * * *",
+    "* * * * *",
     async function(state: State) {
       const jobs = await dailyFeatureSetup(state);
       jobs.forEach((job, id) => {
@@ -53,6 +63,7 @@ export function createDailyFeatureUpdateJob(state: State): Job {
         job.on("run", () => state.scheduledFeatureJobs.delete(id));
         job.on("canceled", () => state.scheduledFeatureJobs.delete(id));
       });
+      console.log(`Running daily update job at ${new Date()}`);
     }.bind(null, state)
   );
 }
