@@ -47,6 +47,7 @@ export async function dailyFeatureSetup(state: State): Promise<Map<ObjectId, Job
   } else {
     const nextQueuedId = await tryPopNextQueuedSceneId(state);
     await updateTimeline(state, nextQueuedId);
+    console.log(`No scheduled features found; updated timeline using next queued scene ID ${nextQueuedId} at ${new Date()}`);
   }
   return jobs;
 
