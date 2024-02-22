@@ -56,7 +56,7 @@ export async function dailyFeatureSetup(state: State): Promise<Map<ObjectId, Job
 export function createDailyFeatureUpdateJob(state: State): Job {
   return scheduleJob(
     "Daily feature update job",
-    "* * * * *",
+    "59 23 * * *",
     async function(state: State) {
       const jobs = await dailyFeatureSetup(state);
       jobs.forEach((job, id) => {
