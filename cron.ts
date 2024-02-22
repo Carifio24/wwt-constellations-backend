@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import { Job, scheduleJob } from "node-schedule";
-import { getFeaturesForRange, nextQueuedSceneId, tryPopFromFeatureQueue } from "./features.js";
+import { getFeaturesForRange, tryPopNextQueuedSceneId } from "./features.js";
 import { State } from "./globals.js";
 import { updateTimeline } from "./superuser.js";
 
@@ -35,10 +35,8 @@ export async function dailyFeatureSetup(state: State): Promise<Map<ObjectId, Job
       jobs.set(feature._id, featureJob);
     }
   } else {
-    const nextQueuedId = await nextQueuedSceneId(state);
+    const nextQueuedId = await tryPopNextQueuedSceneId(state);
     await updateTimeline(state, nextQueuedId);
-    
-    tryPopFromFeatureQueue(state);
   }
   return jobs;
 
