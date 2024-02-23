@@ -120,14 +120,11 @@ initializeTessellationEndpoints(state);
   console.log("Connected to database!");
 
   const dailyUpdateJob = createDailyFeatureUpdateJob(state);
-  dailyUpdateJob.on("run", () => {
-    console.log(`Running daily update job at ${new Date()}`);
-  });
   dailyUpdateJob.on("canceled", () => {
-    console.log(`The daily update job has been canceled at ${new Date()}!`);
+    console.log(`${new Date().toISOString()}: the daily update job was canceled!`);
   });
   dailyUpdateJob.on("error", () => {
-    console.error(`There was an error running the daily update job at ${new Date()}`);
+    console.error(`${new Date().toISOString()}: there was an error running the daily update job`);
   });
 
   app.listen(config.port, () => {
