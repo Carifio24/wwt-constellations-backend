@@ -18,6 +18,7 @@ import { initializeSceneEndpoints } from "./scenes.js";
 import { initializeSuperuserEndpoints } from "./superuser.js";
 import { initializeSessionEndpoints } from "./session.js";
 import { initializeTessellationEndpoints } from "./tessellation.js";
+import { createDailyFeatureUpdateJob } from "./cron.js";
 
 import { setLogLevel } from "@azure/logger";
 
@@ -117,6 +118,14 @@ initializeTessellationEndpoints(state);
 (async () => {
   await dbpromise;
   console.log("Connected to database!");
+
+  const dailyUpdateJob = createDailyFeatureUpdateJob(state);
+  dailyUpdateJob.on("canceled", () => {
+    console.log(`${new Date().toISOString()}: the daily update job was canceled!`);
+  });
+  dailyUpdateJob.on("error", () => {
+    console.error(`${new Date().toISOString()}: there was an error running the daily update job`);
+  });
 
   app.listen(config.port, () => {
     console.log(

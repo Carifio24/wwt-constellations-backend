@@ -1,6 +1,6 @@
 import { Express } from "express";
 import dotenv from "dotenv";
-import { Collection } from "mongodb";
+import { Collection, ObjectId } from "mongodb";
 import { AzureLogLevel } from "@azure/logger";
 
 import { MongoHandle } from "./handles";
@@ -9,6 +9,7 @@ import { MongoScene } from "./scenes";
 import { MongoEvent } from "./events";
 import { MongoTessellation } from "./tessellation";
 import { MongoSceneFeature, MongoSceneFeatureQueue } from "./features";
+import { Job } from "node-schedule";
 
 export class Config {
   // The port number on which the server will listen.
@@ -48,9 +49,6 @@ export class Config {
   // The logging level to use through the application.
   logLevel: AzureLogLevel;
 
-  // A "secret key" used to authenticate other Constellations services
-  frontendAutonomousKey: string;
-
   constructor() {
     dotenv.config();
 
@@ -81,12 +79,6 @@ export class Config {
     this.superuserAccountId = process.env.CX_SUPERUSER_ACCOUNT_ID ?? "nosuperuser";
 
     this.logLevel = process.env.CX_LOG_LEVEL as AzureLogLevel ?? "info";
-
-    const frontendKey = process.env.CX_FRONTEND_AUTONOMOUS_KEY;
-    if (frontendKey === undefined || frontendKey.trim().length < 1) {
-      throw new Error("must define $CX_FRONTEND_AUTONOMOUS_KEY");
-    }
-    this.frontendAutonomousKey = frontendKey;
   }
 }
 
@@ -100,6 +92,7 @@ export class State {
   features: Collection<MongoSceneFeature>;
   featureQueue: Collection<MongoSceneFeatureQueue>;
   tessellations: Collection<MongoTessellation>;
+  scheduledFeatureJobs: Map<ObjectId, Job>;
 
   constructor(
     config: Config,
@@ -121,5 +114,6 @@ export class State {
     this.features = features;
     this.featureQueue = featureQueue;
     this.tessellations = tessellations;
+    this.scheduledFeatureJobs = new Map();
   }
 }
