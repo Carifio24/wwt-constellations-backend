@@ -28,6 +28,10 @@ const QueueRequestBody = t.type({
   scene_ids: t.array(t.string),
 });
 
+const FeatureUpdateRequestBody = t.partial({
+  feature_time: t.string,
+});
+
 function timeStrippedDate(date: Date): Date {
   const day = new Date(date);
   day.setHours(0, 0, 0, 0);
@@ -168,6 +172,39 @@ export function initializeFeatureEndpoints(state: State) {
         features: hydratedFeatures
       });
     });
+
+  state.app.patch("/features/:id",
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      const objectId = new ObjectId(req.params.id);
+      const feature = await state.features.findOne({ _id: objectId });
+      if (feature === null) {
+        res.status(404).json({
+          error: true,
+          message: `Feature with id ${req.params.id} not found`
+        });
+        return;
+      }
+
+      const maybe = FeatureUpdateRequestBody.decode(req.body);
+      if (isLeft(maybe)) {
+        res.status(400).json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
+        return;
+      }
+
+      const updateRequest = maybe.right;
+      try {
+        const result = await state.features.updateOne({ _id: objectId }, updateRequest);
+        res.json({
+          error: false,
+          feature: result
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+  });
 
   state.app.get(
     "/features/queue",
