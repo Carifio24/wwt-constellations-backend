@@ -28,8 +28,13 @@ const QueueRequestBody = t.type({
   scene_ids: t.array(t.string),
 });
 
-const FeatureUpdateRequestBody = t.partial({
-  feature_time: t.string,
+/*
+ * Right now the feature time is the only thing that it makes sense to update,
+ * and there's really no sense having an empty update.
+ * But if that changes in the future, this should probably use `t.partial` instead
+ */
+const FeatureUpdateRequestBody = t.type({
+  feature_time: t.number,
 });
 
 function timeStrippedDate(date: Date): Date {
@@ -192,12 +197,12 @@ export function initializeFeatureEndpoints(state: State) {
         return;
       }
 
-      const updateRequest = maybe.right;
+      const update = { feature_time: new Date(maybe.right.feature_time) };
       try {
-        const result = await state.features.updateOne({ _id: objectId }, updateRequest);
+        const result = await state.features.updateOne({ _id: objectId }, { "$set": update });
         res.json({
           error: false,
-          feature: result
+          updated: result.modifiedCount === 1
         });
       } catch (err) {
         console.error(`${req.method} ${req.path} exception`, err);
@@ -205,6 +210,34 @@ export function initializeFeatureEndpoints(state: State) {
         res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
   });
+
+  state.app.delete(
+    "/features/:id",
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      const objectId = new ObjectId(req.params.id);
+      const feature = await state.features.findOne({ _id: objectId });
+      if (feature === null) {
+        res.status(404).json({
+          error: true,
+          message: `Feature with id ${req.params.id} not found`
+        });
+        return;
+      }
+
+      try {
+        const result = await state.features.deleteOne({ _id: objectId });
+        res.json({
+          error: false,
+          deleted: result.deletedCount === 1
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+
+    });
 
   state.app.get(
     "/features/queue",
