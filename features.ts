@@ -178,7 +178,53 @@ export function initializeFeatureEndpoints(state: State) {
       });
     });
 
-  state.app.patch("/features/:id",
+  state.app.get(
+    "/features/queue",
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      const queueDoc = await state.featureQueue.findOne();
+      const sceneIDs = queueDoc?.scene_ids ?? [];
+      const scenes: Record<string, any>[] = [];
+      for (const id of sceneIDs) {
+        const scene = await state.scenes.findOne({ "_id": new ObjectId(id) });
+        if (scene === null) {
+          throw new Error(`Database consistency failure, feature queue missing scene ${id}`);
+        }
+        const sceneJson = await sceneToJson(scene, state, req.session);
+        scenes.push(sceneJson);
+      }
+
+      res.json({
+        error: false,
+        scenes
+      });
+
+    });
+
+  state.app.get(
+    "/features/:id",
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      const objectId = new ObjectId(req.params.id);
+      const feature = await state.features.findOne({ _id: objectId });
+      if (feature === null) {
+        res.status(404).json({
+          error: true,
+          message: `Feature with id ${req.params.id} not found`
+        });
+        return;
+      }
+
+      const hydrated = await hydratedFeature(state, feature, req);
+      res.json({
+        error: false,
+        feature: hydrated
+      });
+
+    });
+
+  state.app.patch(
+    "/features/:id",
     requireSuperuser,
     async (req: JwtRequest, res: Response) => {
       const objectId = new ObjectId(req.params.id);
@@ -236,29 +282,6 @@ export function initializeFeatureEndpoints(state: State) {
         res.statusCode = 500;
         res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
       }
-
-    });
-
-  state.app.get(
-    "/features/queue",
-    requireSuperuser,
-    async (req: JwtRequest, res: Response) => {
-      const queueDoc = await state.featureQueue.findOne();
-      const sceneIDs = queueDoc?.scene_ids ?? [];
-      const scenes: Record<string, any>[] = [];
-      for (const id of sceneIDs) {
-        const scene = await state.scenes.findOne({ "_id": new ObjectId(id) });
-        if (scene === null) {
-          throw new Error(`Database consistency failure, feature queue missing scene ${id}`);
-        }
-        const sceneJson = await sceneToJson(scene, state, req.session);
-        scenes.push(sceneJson);
-      }
-
-      res.json({
-        error: false,
-        scenes
-      });
 
     });
 
