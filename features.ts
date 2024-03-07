@@ -28,6 +28,15 @@ const QueueRequestBody = t.type({
   scene_ids: t.array(t.string),
 });
 
+/*
+ * Right now the feature time is the only thing that it makes sense to update,
+ * and there's really no sense having an empty update.
+ * But if that changes in the future, this should probably use `t.partial` instead
+ */
+const FeatureUpdateRequestBody = t.type({
+  feature_time: t.number,
+});
+
 function timeStrippedDate(date: Date): Date {
   const day = new Date(date);
   day.setHours(0, 0, 0, 0);
@@ -189,6 +198,90 @@ export function initializeFeatureEndpoints(state: State) {
         error: false,
         scenes
       });
+
+    });
+
+  state.app.get(
+    "/features/:id",
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      const objectId = new ObjectId(req.params.id);
+      const feature = await state.features.findOne({ _id: objectId });
+      if (feature === null) {
+        res.status(404).json({
+          error: true,
+          message: `Feature with id ${req.params.id} not found`
+        });
+        return;
+      }
+
+      const hydrated = await hydratedFeature(state, feature, req);
+      res.json({
+        error: false,
+        feature: hydrated
+      });
+
+    });
+
+  state.app.patch(
+    "/features/:id",
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      const objectId = new ObjectId(req.params.id);
+      const feature = await state.features.findOne({ _id: objectId });
+      if (feature === null) {
+        res.status(404).json({
+          error: true,
+          message: `Feature with id ${req.params.id} not found`
+        });
+        return;
+      }
+
+      const maybe = FeatureUpdateRequestBody.decode(req.body);
+      if (isLeft(maybe)) {
+        res.status(400).json({ error: true, message: `Submission did not match schema: ${PathReporter.report(maybe).join("\n")}` });
+        return;
+      }
+
+      const update = { feature_time: new Date(maybe.right.feature_time) };
+      try {
+        const result = await state.features.updateOne({ _id: objectId }, { "$set": update });
+        res.json({
+          error: false,
+          updated: result.modifiedCount === 1
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+  });
+
+  state.app.delete(
+    "/features/:id",
+    requireSuperuser,
+    async (req: JwtRequest, res: Response) => {
+      const objectId = new ObjectId(req.params.id);
+      const feature = await state.features.findOne({ _id: objectId });
+      if (feature === null) {
+        res.status(404).json({
+          error: true,
+          message: `Feature with id ${req.params.id} not found`
+        });
+        return;
+      }
+
+      try {
+        const result = await state.features.deleteOne({ _id: objectId });
+        res.json({
+          error: false,
+          deleted: result.deletedCount === 1
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
 
     });
 
