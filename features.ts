@@ -3,11 +3,11 @@ import { isLeft } from "fp-ts/lib/Either.js";
 import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { Response } from "express";
 import { Request as JwtRequest } from "express-jwt";
-import { FindCursor, ModifyResult, ObjectId, WithId } from "mongodb";
+import { FindCursor, ObjectId, WithId } from "mongodb";
 
 import { State } from "./globals.js";
 import { sceneToJson } from "./scenes.js";
-import { makeRequireSuperuserMiddleware } from "./superuser.js";
+import { requireSuperuser } from "./superuser.js";
 
 export interface MongoSceneFeature {
   scene_id: ObjectId;
@@ -103,8 +103,6 @@ export function initializeFeatureEndpoints(state: State) {
   });
 
   type FeatureCreationT = t.TypeOf<typeof FeatureCreation>;
-
-  const requireSuperuser = makeRequireSuperuserMiddleware(state);
 
   state.app.post(
     "/feature",

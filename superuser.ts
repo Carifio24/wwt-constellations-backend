@@ -7,6 +7,7 @@
 
 import { NextFunction, Response, RequestHandler } from "express";
 import { Request as JwtRequest } from "express-jwt";
+import { JwtPayload } from "jsonwebtoken";
 import * as t from "io-ts";
 import { PathReporter } from "io-ts/lib/PathReporter.js";
 import { isLeft } from "fp-ts/lib/Either.js";
@@ -17,24 +18,25 @@ import { State } from "./globals.js";
 import { MongoScene } from "./scenes.js";
 import { createGlobalTessellation } from "./tessellation.js";
 import { getCurrentFeaturedSceneID } from "./features.js";
+import { KeycloakTokenParsed } from "keycloak-js";
 
-export function amISuperuser(req: JwtRequest, state: State): boolean {
-  return req.auth !== undefined && req.auth.sub === state.config.superuserAccountId;
+export type KeycloakJwtRequest = JwtRequest<JwtPayload & KeycloakTokenParsed>;
+
+export function amISuperuser(req: KeycloakJwtRequest): boolean {
+  return req.auth !== undefined && !!req.auth.realm_access?.roles.includes("admin");
 }
 
-export function makeRequireSuperuserMiddleware(state: State): RequestHandler {
-  return (req: JwtRequest, res: Response, next: NextFunction) => {
-    if (!amISuperuser(req, state)) {
-      res.status(403).json({
-        error: true,
-        message: "Forbidden"
-      });
-    } else {
-      console.warn("executing superuser API call:", req.path);
-      next();
-    }
-  };
-}
+export const requireSuperuser: RequestHandler = (req: KeycloakJwtRequest, res: Response, next: NextFunction) => {
+  if (!amISuperuser(req)) {
+    res.status(403).json({
+      error: true,
+      message: "Forbidden"
+    });
+  } else {
+    console.warn("executing superuser API call:", req.path);
+    next();
+  }
+};
 
 export async function updateTimeline(state: State, initialSceneID: ObjectId | null): Promise<void> {
   let initialScene: WithId<MongoScene> | null = null;
@@ -70,14 +72,14 @@ export function initializeSuperuserEndpoints(state: State) {
   // whether to show UI related to superuser activities. Since one can invoke
   // the superuser backend APIs directly, this is purely superficial
   // functionality.
-  state.app.get("/misc/amisuperuser", async (req: JwtRequest, res: Response) => {
+  state.app.get("/misc/amisuperuser", async (req: KeycloakJwtRequest, res: Response) => {
     res.json({
-      result: amISuperuser(req, state),
+      result: amISuperuser(req),
     });
   });
 
   // A middleware to require that the request comes from the superuser account.
-  const requireSuperuser = makeRequireSuperuserMiddleware(state);
+  const requireSuperuser = makeRequireSuperuserMiddleware();
 
   // POST /misc/config-database - Set up some configuration of our backing
   // database.
