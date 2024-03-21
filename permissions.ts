@@ -1,6 +1,6 @@
-import { JwtPayload } from "jsonwebtoken";
-import { Request as JwtRequest } from "express-jwt";
+import type { JwtPayload } from "jsonwebtoken";
 import type { KeycloakTokenParsed } from "keycloak-js";
+import { Request as JwtRequest } from "express-jwt";
 import { NextFunction, RequestHandler, Response } from "express";
 
 import { State } from "./globals.js";
@@ -46,6 +46,7 @@ export function makeRequireSuperuserMiddleware(state: State): RequestHandler {
 
 export function makeRequireSuperuserOrRoleMiddleware(state: State, role: ConstellationsRole): RequestHandler {
   return (req: KeycloakJwtRequest, res: Response, next: NextFunction) => {
+    console.log(hasRole(req, role));
     const allowed = amISuperuser(req, state) || hasRole(req, role);
     if (!allowed) {
       res.status(403).json({
