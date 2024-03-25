@@ -108,7 +108,6 @@ state.app.get("/", (_req: Request, res: Response) => {
 initializeFeatureEndpoints(state);
 initializeHandleEndpoints(state);
 initializeImageEndpoints(state);
-initializePermissionsEndpoints(state);
 initializeSceneEndpoints(state);
 initializeSuperuserEndpoints(state);
 initializeSessionEndpoints(state);
