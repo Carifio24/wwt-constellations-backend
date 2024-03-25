@@ -25,8 +25,9 @@ export function makeRequireRoleMiddleware(role: ConstellationsRole): RequestHand
         error: true,
         message: "Forbidden",
       });
+    } else {
+      next();
     }
-    next();
   };
 }
 
@@ -46,7 +47,6 @@ export function makeRequireSuperuserMiddleware(state: State): RequestHandler {
 
 export function makeRequireSuperuserOrRoleMiddleware(state: State, role: ConstellationsRole): RequestHandler {
   return (req: KeycloakJwtRequest, res: Response, next: NextFunction) => {
-    console.log(hasRole(req, role));
     const allowed = amISuperuser(req, state) || hasRole(req, role);
     if (!allowed) {
       res.status(403).json({
@@ -57,12 +57,4 @@ export function makeRequireSuperuserOrRoleMiddleware(state: State, role: Constel
       next();
     }
   };
-}
-
-export function initializePermissionsEndpoints(state: State) {
-  state.app.get("/misc/permissions", async (req: KeycloakJwtRequest, res: Response) => {
-    res.json({
-      result: req.auth?.realm_access?.roles ?? []
-    });
-  });
 }

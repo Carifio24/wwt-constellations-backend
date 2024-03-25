@@ -18,7 +18,6 @@ import { initializeSceneEndpoints } from "./scenes.js";
 import { initializeSuperuserEndpoints } from "./superuser.js";
 import { initializeSessionEndpoints } from "./session.js";
 import { initializeTessellationEndpoints } from "./tessellation.js";
-import { initializePermissionsEndpoints } from "./permissions.js";
 import { createDailyFeatureUpdateJob } from "./cron.js";
 
 import { setLogLevel } from "@azure/logger";
