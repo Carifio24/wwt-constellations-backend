@@ -46,6 +46,7 @@ export interface MongoScene {
 
   published: boolean;
   home_timeline_sort_key?: number;
+  astropix?: AstroPixInfoT;
 }
 
 const ScenePlace = t.type({
@@ -80,6 +81,13 @@ const ScenePreviews = t.partial({
 });
 
 type ScenePreviewsT = t.TypeOf<typeof ScenePreviews>;
+
+const AstroPixInfo = t.type({
+  publisher_id: t.string,
+  image_id: t.string,
+});
+
+type AstroPixInfoT = t.TypeOf<typeof AstroPixInfo>;
 
 const sceneShareTypes = ["facebook", "linkedin", "twitter", "email", "copy"] as const;
 export type SceneShareType = typeof sceneShareTypes[number];
@@ -205,6 +213,10 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
 
   if (scene.outgoing_url) {
     output.outgoing_url = scene.outgoing_url;
+  }
+
+  if (scene.astropix) {
+    output.astropix = scene.astropix;
   }
 
   // ~"Hydrate" the content
@@ -918,5 +930,4 @@ export function initializeSceneEndpoints(state: State) {
         results: scenes
       });
     });
-
 }

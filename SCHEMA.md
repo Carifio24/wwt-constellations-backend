@@ -114,6 +114,9 @@ Each document in the `scenes` collection may have the following fields:
 - `home_timeline_sort_key` (integer): if present and non-negative, the scene is
   included in the global home timeline, with its position set by the ordering of
   these values.
+- `astropix`: information associating this scene with an AstroPix record
+  - `publisher_id`: (string) the publisher ID of the AstroPix record
+  - `image_id`: (string) the image ID of the AstroPix record
 
 An ImageLayer record may have the following fields:
 
