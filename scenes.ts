@@ -813,6 +813,62 @@ export function initializeSceneEndpoints(state: State) {
     }
   );
 
+  // GET /scenes/astropix-summary
+  //
+  // Get a structured summary of which scenes correspond to AstroPix records.
+  // This is intended to be used by the AstroPix service to periodically update
+  // its knowledge of which AstroPix images can be linked to Constellations
+  // items.
+
+  state.app.get(
+    "/scenes/astropix-summary",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        type ImgDict = { [idx: string]: string[] | undefined };
+        const result: { [idx: string]: ImgDict | undefined } = {};
+        const handles: { [idx: string]: string | undefined } = {};
+
+        const docs = state.scenes.find({
+          "astropix.publisher_id": { "$ne": null },
+          published: true,
+        });
+
+        for await (const doc of docs) {
+          const publisher_id = doc.astropix!.publisher_id;
+          const image_id = doc.astropix!.image_id;
+
+          var images = result[publisher_id];
+          if (images === undefined) {
+            images = {};
+            result[publisher_id] = images;
+          }
+
+          var handle = handles["" + doc.handle_id];
+          if (handle === undefined) {
+            const owner_handle = await state.handles.findOne({ "_id": doc.handle_id });
+            if (owner_handle === null) {
+              throw new Error(`Internal database inconsistency: scene missing owner ${doc.handle_id}`);
+            }
+
+            handle = owner_handle.handle;
+            handles["" + doc.handle_id] = handle;
+          }
+
+          images[image_id] = ["@" + handle, "" + doc._id];
+        }
+
+        res.json({
+          error: false,
+          result: result,
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
   // GET /handle/:handle/sceneinfo?page=$int&pagesize=$int - get admin
   // information about scenes
   //
