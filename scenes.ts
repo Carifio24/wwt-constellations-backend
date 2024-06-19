@@ -20,6 +20,7 @@ import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { logClickEvent, logImpressionEvent, logLikeEvent, logShareEvent } from "./events.js";
 import { State } from "./globals.js";
+import { hasRole, type KeycloakJwtRequest } from "./permissions.js";
 import { isAllowed as handleIsAllowed } from "./handles.js";
 import { imageToImageset, imageToDisplayJson } from "./images.js";
 import { nearbySceneIDs } from "./tessellation.js";
@@ -272,14 +273,15 @@ export function initializeSceneEndpoints(state: State) {
     content: SceneContent,
     outgoing_url: t.union([t.string, t.undefined]),
     text: t.string,
-    published: t.union([t.boolean, t.undefined])
+    published: t.union([t.boolean, t.undefined]),
+    astropix: t.union([AstroPixInfo, t.undefined]),
   });
 
   type SceneCreationT = t.TypeOf<typeof SceneCreation>;
 
   state.app.post(
     "/handle/:handle/scene",
-    async (req: JwtRequest, res: Response) => {
+    async (req: KeycloakJwtRequest, res: Response) => {
       const handle_name = req.params.handle;
 
       // Are we authorized?
@@ -309,6 +311,14 @@ export function initializeSceneEndpoints(state: State) {
       }
 
       const input: SceneCreationT = maybe.right;
+
+      if (input.astropix !== undefined) {
+        if (!hasRole(req, "manage-astropix")) {
+          res.statusCode = 403;
+          res.json({ error: true, message: "Modification of astropix data forbidden" });
+          return;
+        }
+      }
 
       if (input.content.image_layers !== undefined) {
         for (var layer of input.content.image_layers) {
@@ -349,6 +359,10 @@ export function initializeSceneEndpoints(state: State) {
 
       if (input.outgoing_url) {
         new_rec.outgoing_url = input.outgoing_url;
+      }
+
+      if (input.astropix !== undefined) {
+        new_rec.astropix = input.astropix;
       }
 
       try {
@@ -620,13 +634,14 @@ export function initializeSceneEndpoints(state: State) {
     place: ScenePlace,
     content: SceneContentPatch,
     published: t.boolean,
+    astropix: AstroPixInfo,
   });
 
   type ScenePatchT = t.TypeOf<typeof ScenePatch>;
 
   state.app.patch(
     "/scene/:id",
-    async (req: JwtRequest, res: Response) => {
+    async (req: KeycloakJwtRequest, res: Response) => {
       try {
         // Validate inputs
 
@@ -652,8 +667,8 @@ export function initializeSceneEndpoints(state: State) {
         // For this operation, we might require different permissions depending
         // on what changes are exactly being requested. Note that patch
         // operations should either fully succeed or fully fail -- no partial
-        // applications. Here we cache the `canEdit` permission since everything
-        // uses it.
+        // applications. Here we cache the `canEdit` permission since nearly
+        // everything uses it.
 
         let allowed = true;
         const canEdit = await isAllowed(state, req, scene, "edit");
@@ -665,7 +680,7 @@ export function initializeSceneEndpoints(state: State) {
         // operations we might use below. We have to hack around the typing
         // below, though, because TypeScript takes some elements here to be
         // read-only.
-        let operation: UpdateFilter<MongoScene> = { "$set": {} };
+        let operation: UpdateFilter<MongoScene> = { "$set": {}, "$unset": {} };
 
         if (input.text) {
           allowed = allowed && canEdit;
@@ -736,6 +751,22 @@ export function initializeSceneEndpoints(state: State) {
         if (input.published !== undefined) {
           allowed = allowed && canEdit;
           (operation as any)["$set"]["published"] = input.published;
+        }
+
+        if (input.astropix !== undefined) {
+          allowed = allowed && hasRole(req, "manage-astropix");
+
+          if (!input.astropix.publisher_id && !input.astropix.image_id) {
+            // Setting both publisher and image to empty indicates deletion of
+            // the association.
+            (operation as any)["$unset"]["astropix"] = true;
+          } else if (input.astropix.publisher_id && input.astropix.image_id) {
+            (operation as any)["$set"]["astropix"] = input.astropix;
+          } else {
+            res.statusCode = 400;
+            res.json({ error: true, message: "Invalid input `astropix`: both publisher and image IDs must be defined" });
+            return;
+          }
         }
 
         // How did we do?

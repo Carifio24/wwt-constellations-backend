@@ -8,7 +8,7 @@ import { State } from "./globals.js";
 export type KeycloakJwtRequest = JwtRequest<JwtPayload & KeycloakTokenParsed>;
 
 export type ConstellationsRole = 'update-home-timeline' | 'update-global-tessellation' |
-                                 'manage-handles' | 'manage-features';
+  'manage-handles' | 'manage-features' | 'manage-astropix';
 
 export function amISuperuser(req: JwtRequest, state: State): boolean {
   return req.auth !== undefined && req.auth.sub === state.config.superuserAccountId;
