@@ -20,6 +20,7 @@ import { XMLBuilder } from "xmlbuilder2/lib/interfaces";
 
 import { logClickEvent, logImpressionEvent, logLikeEvent, logShareEvent } from "./events.js";
 import { State } from "./globals.js";
+import { hasRole, type KeycloakJwtRequest } from "./permissions.js";
 import { isAllowed as handleIsAllowed } from "./handles.js";
 import { imageToImageset, imageToDisplayJson } from "./images.js";
 import { nearbySceneIDs } from "./tessellation.js";
@@ -46,6 +47,7 @@ export interface MongoScene {
 
   published: boolean;
   home_timeline_sort_key?: number;
+  astropix?: AstroPixInfoT;
 }
 
 const ScenePlace = t.type({
@@ -80,6 +82,13 @@ const ScenePreviews = t.partial({
 });
 
 type ScenePreviewsT = t.TypeOf<typeof ScenePreviews>;
+
+const AstroPixInfo = t.type({
+  publisher_id: t.string,
+  image_id: t.string,
+});
+
+type AstroPixInfoT = t.TypeOf<typeof AstroPixInfo>;
 
 const sceneShareTypes = ["facebook", "linkedin", "twitter", "email", "copy"] as const;
 export type SceneShareType = typeof sceneShareTypes[number];
@@ -207,6 +216,10 @@ export async function sceneToJson(scene: WithId<MongoScene>, state: State, sessi
     output.outgoing_url = scene.outgoing_url;
   }
 
+  if (scene.astropix) {
+    output.astropix = scene.astropix;
+  }
+
   // ~"Hydrate" the content
 
   if (scene.content.image_layers) {
@@ -260,14 +273,15 @@ export function initializeSceneEndpoints(state: State) {
     content: SceneContent,
     outgoing_url: t.union([t.string, t.undefined]),
     text: t.string,
-    published: t.union([t.boolean, t.undefined])
+    published: t.union([t.boolean, t.undefined]),
+    astropix: t.union([AstroPixInfo, t.undefined]),
   });
 
   type SceneCreationT = t.TypeOf<typeof SceneCreation>;
 
   state.app.post(
     "/handle/:handle/scene",
-    async (req: JwtRequest, res: Response) => {
+    async (req: KeycloakJwtRequest, res: Response) => {
       const handle_name = req.params.handle;
 
       // Are we authorized?
@@ -297,6 +311,14 @@ export function initializeSceneEndpoints(state: State) {
       }
 
       const input: SceneCreationT = maybe.right;
+
+      if (input.astropix !== undefined) {
+        if (!hasRole(req, "manage-astropix")) {
+          res.statusCode = 403;
+          res.json({ error: true, message: "Modification of astropix data forbidden" });
+          return;
+        }
+      }
 
       if (input.content.image_layers !== undefined) {
         for (var layer of input.content.image_layers) {
@@ -337,6 +359,10 @@ export function initializeSceneEndpoints(state: State) {
 
       if (input.outgoing_url) {
         new_rec.outgoing_url = input.outgoing_url;
+      }
+
+      if (input.astropix !== undefined) {
+        new_rec.astropix = input.astropix;
       }
 
       try {
@@ -608,13 +634,14 @@ export function initializeSceneEndpoints(state: State) {
     place: ScenePlace,
     content: SceneContentPatch,
     published: t.boolean,
+    astropix: AstroPixInfo,
   });
 
   type ScenePatchT = t.TypeOf<typeof ScenePatch>;
 
   state.app.patch(
     "/scene/:id",
-    async (req: JwtRequest, res: Response) => {
+    async (req: KeycloakJwtRequest, res: Response) => {
       try {
         // Validate inputs
 
@@ -640,8 +667,8 @@ export function initializeSceneEndpoints(state: State) {
         // For this operation, we might require different permissions depending
         // on what changes are exactly being requested. Note that patch
         // operations should either fully succeed or fully fail -- no partial
-        // applications. Here we cache the `canEdit` permission since everything
-        // uses it.
+        // applications. Here we cache the `canEdit` permission since nearly
+        // everything uses it.
 
         let allowed = true;
         const canEdit = await isAllowed(state, req, scene, "edit");
@@ -653,7 +680,7 @@ export function initializeSceneEndpoints(state: State) {
         // operations we might use below. We have to hack around the typing
         // below, though, because TypeScript takes some elements here to be
         // read-only.
-        let operation: UpdateFilter<MongoScene> = { "$set": {} };
+        let operation: UpdateFilter<MongoScene> = { "$set": {}, "$unset": {} };
 
         if (input.text) {
           allowed = allowed && canEdit;
@@ -726,6 +753,22 @@ export function initializeSceneEndpoints(state: State) {
           (operation as any)["$set"]["published"] = input.published;
         }
 
+        if (input.astropix !== undefined) {
+          allowed = allowed && hasRole(req, "manage-astropix");
+
+          if (!input.astropix.publisher_id && !input.astropix.image_id) {
+            // Setting both publisher and image to empty indicates deletion of
+            // the association.
+            (operation as any)["$unset"]["astropix"] = true;
+          } else if (input.astropix.publisher_id && input.astropix.image_id) {
+            (operation as any)["$set"]["astropix"] = input.astropix;
+          } else {
+            res.statusCode = 400;
+            res.json({ error: true, message: "Invalid input `astropix`: both publisher and image IDs must be defined" });
+            return;
+          }
+        }
+
         // How did we do?
 
         if (!allowed) {
@@ -792,6 +835,62 @@ export function initializeSceneEndpoints(state: State) {
         res.json({
           error: false,
           results: scenes,
+        });
+      } catch (err) {
+        console.error(`${req.method} ${req.path} exception:`, err);
+        res.statusCode = 500;
+        res.json({ error: true, message: `error serving ${req.method} ${req.path}` });
+      }
+    }
+  );
+
+  // GET /scenes/astropix-summary
+  //
+  // Get a structured summary of which scenes correspond to AstroPix records.
+  // This is intended to be used by the AstroPix service to periodically update
+  // its knowledge of which AstroPix images can be linked to Constellations
+  // items.
+
+  state.app.get(
+    "/scenes/astropix-summary",
+    async (req: JwtRequest, res: Response) => {
+      try {
+        type ImgDict = { [idx: string]: string[] | undefined };
+        const result: { [idx: string]: ImgDict | undefined } = {};
+        const handles: { [idx: string]: string | undefined } = {};
+
+        const docs = state.scenes.find({
+          "astropix.publisher_id": { "$ne": null },
+          published: true,
+        });
+
+        for await (const doc of docs) {
+          const publisher_id = doc.astropix!.publisher_id;
+          const image_id = doc.astropix!.image_id;
+
+          var images = result[publisher_id];
+          if (images === undefined) {
+            images = {};
+            result[publisher_id] = images;
+          }
+
+          var handle = handles["" + doc.handle_id];
+          if (handle === undefined) {
+            const owner_handle = await state.handles.findOne({ "_id": doc.handle_id });
+            if (owner_handle === null) {
+              throw new Error(`Internal database inconsistency: scene missing owner ${doc.handle_id}`);
+            }
+
+            handle = owner_handle.handle;
+            handles["" + doc.handle_id] = handle;
+          }
+
+          images[image_id] = ["@" + handle, "" + doc._id];
+        }
+
+        res.json({
+          error: false,
+          result: result,
         });
       } catch (err) {
         console.error(`${req.method} ${req.path} exception:`, err);
@@ -918,5 +1017,4 @@ export function initializeSceneEndpoints(state: State) {
         results: scenes
       });
     });
-
 }

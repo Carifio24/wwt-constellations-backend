@@ -418,7 +418,7 @@ __metadata:
     io-ts: ^2.2
     jsdom: ^22.0.0
     jwks-rsa: ^3.0
-    keycloak-js: ^24.0.1
+    keycloak-js: ^25
     mongodb: ^5.0.1
     node-schedule: ^2.1.1
     spdx-expression-parse: ^3.0.1
@@ -1363,13 +1363,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"keycloak-js@npm:^24.0.1":
-  version: 24.0.1
-  resolution: "keycloak-js@npm:24.0.1"
+"keycloak-js@npm:^25":
+  version: 25.0.0
+  resolution: "keycloak-js@npm:25.0.0"
   dependencies:
     js-sha256: ^0.11.0
     jwt-decode: ^4.0.0
-  checksum: ad38c57a72b2e2e5cc456e77fe1903317f55882e76460105f7207020fb17a2ddcbe6a3e2c1cf09a359dfdc9202c9dc446bffe132155fac3296c1507e67c8a418
+  checksum: bfc774c660117e558b1871c1188ae5c7be34b5c64fbc7699abb2a2b921d1b4ad2a47987edead2ff59a30e86b1803b444dbaf2bcda6aa108f5c039450dd884a97
   languageName: node
   linkType: hard
 
